@@ -115,7 +115,7 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
               <p className="text-xs mt-1">コード進行を分析すると、ここに履歴が表示されます</p>
             </div>
           ) : (
-            history.map((item) => (
+            history.slice(0, 8).map((item) => ( // 最初の8件（約2行分）のみ表示
               <div
                 key={item.id}
                 onClick={() => handleReplay(item)}
@@ -159,7 +159,7 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
           
           {history.length > 0 && (
             <div className="pt-2 text-xs text-gray-500 text-center">
-              クリックで再分析 • 最大{history.length}/10件まで保存
+              クリックで再分析 • {history.length > 8 ? `8/${history.length}件表示` : `${history.length}件`} • 最大10件まで保存
             </div>
           )}
         </div>

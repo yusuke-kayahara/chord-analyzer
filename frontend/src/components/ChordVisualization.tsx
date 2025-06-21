@@ -163,7 +163,7 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
 
       {/* コード進行表示 */}
       <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
           {chords.map((chord, index) => {
             const isBorrowed = isBorrowedChord(chord);
             const borrowedInfo = getBorrowedInfo(chord);
@@ -213,22 +213,6 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
               </div>
             );
           })}
-        </div>
-
-        {/* 進行矢印 */}
-        <div className="flex justify-center items-center space-x-4 mt-4">
-          {chords.slice(0, -1).map((_, index) => (
-            <div key={index} className="flex items-center">
-              <div className="w-8 h-0.5 bg-gray-300"></div>
-              <svg 
-                className="w-4 h-4 text-gray-400 ml-1" 
-                fill="currentColor" 
-                viewBox="0 0 20 20"
-              >
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-          ))}
         </div>
       </div>
 
