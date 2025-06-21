@@ -11,9 +11,13 @@ app = FastAPI(title="Chord Progression Analyzer", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",  # 開発環境
+        "https://*.vercel.app",   # Vercel本番環境（ワイルドカード）
+        "https://chord-analyzer.vercel.app",  # 実際のドメイン（後で更新）
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
