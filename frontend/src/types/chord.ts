@@ -51,6 +51,10 @@ export interface AdvancedSettings {
   showAdvanced: boolean;
 }
 
+export interface SelectedBorrowedKeys {
+  [chordName: string]: string; // コード名 -> 選択された借用元キー
+}
+
 export interface AnalysisHistory {
   id: string;
   timestamp: number;

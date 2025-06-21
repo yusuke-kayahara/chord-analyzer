@@ -1,11 +1,13 @@
 import React from 'react';
-import { ChordAnalysisResponse } from '../types/chord';
+import { ChordAnalysisResponse, SelectedBorrowedKeys } from '../types/chord';
 
 interface AnalysisResultProps {
   result: ChordAnalysisResponse;
+  selectedBorrowedKeys: SelectedBorrowedKeys;
+  onBorrowedKeySelect: (chord: string, key: string) => void;
 }
 
-const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
+const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, selectedBorrowedKeys, onBorrowedKeySelect }) => {
   const formatConfidence = (confidence: number): string => {
     return `${(confidence * 100).toFixed(1)}%`;
   };
@@ -159,28 +161,64 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
                 </div>
 
                 <div>
-                  <h5 className="text-sm font-medium text-gray-700 mb-2">借用元候補:</h5>
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="text-sm font-medium text-gray-700">借用元候補:</h5>
+                    <select
+                      value={selectedBorrowedKeys[borrowed.chord] || ''}
+                      onChange={(e) => onBorrowedKeySelect(borrowed.chord, e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                    >
+                      <option value="">自動選択</option>
+                      {borrowed.source_candidates.map((candidate, candIndex) => (
+                        <option key={candIndex} value={candidate.key}>
+                          {candidate.key} ({candidate.relationship})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="space-y-2">
-                    {borrowed.source_candidates.map((candidate, candIndex) => (
-                      <div
-                        key={candIndex}
-                        className="flex items-center justify-between p-3 bg-white rounded border"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span className="font-semibold text-gray-800">
-                            {candidate.key}
-                          </span>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getRelationshipBadgeColor(candidate.relationship)}`}
-                          >
-                            {candidate.relationship}
-                          </span>
+                    {borrowed.source_candidates.map((candidate, candIndex) => {
+                      const isSelected = selectedBorrowedKeys[borrowed.chord] === candidate.key;
+                      const isAutoSelected = !selectedBorrowedKeys[borrowed.chord] && candIndex === 0;
+                      return (
+                        <div
+                          key={candIndex}
+                          className={`flex items-center justify-between p-3 rounded border transition-colors ${
+                            isSelected ? 'bg-blue-100 border-blue-300' : 
+                            isAutoSelected ? 'bg-green-50 border-green-200' : 
+                            'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <span className={`font-semibold ${
+                              isSelected ? 'text-blue-800' : 
+                              isAutoSelected ? 'text-green-800' : 
+                              'text-gray-800'
+                            }`}>
+                              {candidate.key}
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getRelationshipBadgeColor(candidate.relationship)}`}
+                            >
+                              {candidate.relationship}
+                            </span>
+                            {isSelected && (
+                              <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                                選択中
+                              </span>
+                            )}
+                            {isAutoSelected && (
+                              <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">
+                                自動選択
+                              </span>
+                            )}
+                          </div>
+                          <div className={`font-semibold ${getConfidenceColor(candidate.confidence)}`}>
+                            {formatConfidence(candidate.confidence)}
+                          </div>
                         </div>
-                        <div className={`font-semibold ${getConfidenceColor(candidate.confidence)}`}>
-                          {formatConfidence(candidate.confidence)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

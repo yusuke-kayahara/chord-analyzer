@@ -1,16 +1,18 @@
 import React from 'react';
-import { BorrowedChord } from '../types/chord';
+import { BorrowedChord, SelectedBorrowedKeys } from '../types/chord';
 
 interface ChordVisualizationProps {
   chordInput: string;
   mainKey: string;
   borrowedChords: BorrowedChord[];
+  selectedBorrowedKeys: SelectedBorrowedKeys;
 }
 
 const ChordVisualization: React.FC<ChordVisualizationProps> = ({
   chordInput,
   mainKey,
-  borrowedChords
+  borrowedChords,
+  selectedBorrowedKeys
 }) => {
   // コードが有効かどうかを判定
   const isValidChord = (chord: string): boolean => {
@@ -49,6 +51,18 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
   // 借用和音の詳細情報を取得
   const getBorrowedInfo = (chord: string): BorrowedChord | undefined => {
     return borrowedChords.find(bc => bc.chord === chord);
+  };
+
+  // 選択された借用元キーを取得（未選択の場合は最有力候補）
+  const getSelectedBorrowedKey = (chord: string): string | undefined => {
+    const borrowedInfo = getBorrowedInfo(chord);
+    if (!borrowedInfo) return undefined;
+    
+    const selectedKey = selectedBorrowedKeys[chord];
+    if (selectedKey) return selectedKey;
+    
+    // 未選択の場合は最有力候補（最初の候補）を返す
+    return borrowedInfo.source_candidates[0]?.key;
   };
 
   // 音名をピッチクラス番号に変換
@@ -191,6 +205,13 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
                 <div className="text-center text-xs text-gray-600 mt-1">
                   {degree}
                 </div>
+                
+                {/* 借用元キー表示 */}
+                {isBorrowed && (
+                  <div className="text-center text-xs text-amber-600 mt-1 font-medium">
+                    from {getSelectedBorrowedKey(chord)}
+                  </div>
+                )}
                 
                 {/* 借用和音インジケーター */}
                 {isBorrowed && (

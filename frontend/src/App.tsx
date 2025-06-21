@@ -6,7 +6,7 @@ import AdvancedSettings from './components/AdvancedSettings';
 import AnalysisHistory from './components/AnalysisHistory';
 import ShareButton from './components/ShareButton';
 import { analyzeChordProgression, testApiConnection } from './services/api';
-import { UIState, AdvancedSettings as AdvancedSettingsType } from './types/chord';
+import { UIState, AdvancedSettings as AdvancedSettingsType, SelectedBorrowedKeys } from './types/chord';
 import { HistoryStorage } from './utils/historyStorage';
 import { URLSharing } from './utils/urlSharing';
 
@@ -26,6 +26,7 @@ function App() {
     manual_key: '',
     showAdvanced: false
   });
+  const [selectedBorrowedKeys, setSelectedBorrowedKeys] = useState<SelectedBorrowedKeys>({});
   const isAnalyzingRef = useRef(false); // 分析中フラグ（重複実行防止）
 
   const handleAnalyze = useCallback(async (chordInput: string, saveToHistory: boolean = true) => {
@@ -53,6 +54,9 @@ function App() {
         result,
         error: null,
       }));
+      
+      // 新しい分析結果の場合、借用元キー選択をリセット
+      setSelectedBorrowedKeys({});
       
       // 新規分析の場合のみ履歴に保存
       if (saveToHistory) {
@@ -84,6 +88,18 @@ function App() {
     setAdvancedSettings(settings);
     // 分析を再実行（履歴には保存しない）
     handleAnalyze(chordInput, false);
+  };
+
+  const handleBorrowedKeySelect = (chord: string, key: string) => {
+    setSelectedBorrowedKeys(prev => {
+      const newState = { ...prev };
+      if (key === '') {
+        delete newState[chord];
+      } else {
+        newState[chord] = key;
+      }
+      return newState;
+    });
   };
 
   // API接続テスト
@@ -208,11 +224,16 @@ function App() {
         {/* 分析結果 */}
         {state.result && (
           <>
-            <AnalysisResult result={state.result} />
+            <AnalysisResult 
+              result={state.result} 
+              selectedBorrowedKeys={selectedBorrowedKeys}
+              onBorrowedKeySelect={handleBorrowedKeySelect}
+            />
             <ChordVisualization
               chordInput={lastInput}
               mainKey={state.result.main_key}
               borrowedChords={state.result.borrowed_chords}
+              selectedBorrowedKeys={selectedBorrowedKeys}
             />
             
             {/* 共有ボタン */}
