@@ -65,9 +65,9 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
       </h3>
       
       {/* キー情報 */}
-      <div className="mb-4 p-3 bg-primary-50 rounded-lg">
-        <span className="text-sm text-primary-600 font-medium">Key: </span>
-        <span className="text-lg font-bold text-primary-700">{mainKey}</span>
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+        <span className="text-sm text-blue-600 font-medium">Key: </span>
+        <span className="text-lg font-bold text-blue-700">{mainKey}</span>
       </div>
 
       {/* コード進行表示 */}
@@ -84,14 +84,14 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
                 className={`
                   relative p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105
                   ${isBorrowed 
-                    ? 'bg-accent-50 border-accent-300 shadow-md' 
-                    : 'bg-primary-50 border-primary-200 hover:bg-primary-100'
+                    ? 'bg-amber-50 border-amber-300 shadow-md' 
+                    : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
                   }
                 `}
               >
                 {/* コード名 */}
                 <div className={`text-center font-bold text-lg ${
-                  isBorrowed ? 'text-accent-700' : 'text-primary-700'
+                  isBorrowed ? 'text-amber-700' : 'text-blue-700'
                 }`}>
                   {chord}
                 </div>
@@ -103,7 +103,7 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
                 
                 {/* 借用和音インジケーター */}
                 {isBorrowed && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent-500 rounded-full"></div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full"></div>
                 )}
                 
                 {/* 非ダイアトニック音表示 */}
@@ -144,12 +144,12 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
       {/* 凡例 */}
       <div className="mt-6 flex flex-wrap gap-4 text-sm">
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-primary-100 border border-primary-200 rounded mr-2"></div>
+          <div className="w-4 h-4 bg-blue-100 border border-blue-200 rounded mr-2"></div>
           <span className="text-gray-600">ダイアトニック和音</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-accent-100 border border-accent-300 rounded mr-2 relative">
-            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-500 rounded-full"></div>
+          <div className="w-4 h-4 bg-amber-100 border border-amber-300 rounded mr-2 relative">
+            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full"></div>
           </div>
           <span className="text-gray-600">借用和音</span>
         </div>

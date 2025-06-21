@@ -27,12 +27,12 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       {/* メインキー表示 */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg">
+      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-50 rounded-lg">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">分析結果</h2>
         <div className="flex items-center space-x-4">
           <div>
             <span className="text-sm text-gray-600">推定キー:</span>
-            <span className="ml-2 text-2xl font-bold text-primary-700">
+            <span className="ml-2 text-2xl font-bold text-blue-700">
               {result.main_key}
             </span>
           </div>
@@ -55,7 +55,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
             return (
               <div key={note} className="text-center">
                 <div 
-                  className="bg-primary-500 mb-1 rounded-t"
+                  className="bg-blue-500 mb-1 rounded-t"
                   style={{ height: `${height}px` }}
                 ></div>
                 <div className="text-xs font-medium text-gray-600">{note}</div>
@@ -76,9 +76,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
           </h3>
           <div className="space-y-4">
             {result.borrowed_chords.map((borrowed, index) => (
-              <div key={index} className="border border-accent-200 rounded-lg p-4 bg-accent-50">
+              <div key={index} className="border border-amber-200 rounded-lg p-4 bg-amber-50">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xl font-bold text-accent-700">
+                  <h4 className="text-xl font-bold text-amber-700">
                     {borrowed.chord}
                   </h4>
                   <div className="flex flex-wrap gap-1">

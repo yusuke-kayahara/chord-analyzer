@@ -49,7 +49,7 @@ const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="例: [CM7][Am7][FM7][G7]"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             rows={3}
             disabled={isAnalyzing}
           />
@@ -73,7 +73,7 @@ const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
         <button
           type="submit"
           disabled={!isValidInput || isAnalyzing}
-          className="w-full py-3 px-4 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-3 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isAnalyzing ? (
             <div className="flex items-center justify-center">
