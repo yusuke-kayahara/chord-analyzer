@@ -163,18 +163,14 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, selectedBorrowe
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-sm font-medium text-gray-700">借用元候補:</h5>
-                    <select
-                      value={selectedBorrowedKeys[borrowed.chord] || ''}
-                      onChange={(e) => onBorrowedKeySelect(borrowed.chord, e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
-                    >
-                      <option value="">自動選択</option>
-                      {borrowed.source_candidates.map((candidate, candIndex) => (
-                        <option key={candIndex} value={candidate.key}>
-                          {candidate.key} ({candidate.relationship})
-                        </option>
-                      ))}
-                    </select>
+                    {selectedBorrowedKeys[borrowed.chord] && (
+                      <button
+                        onClick={() => onBorrowedKeySelect(borrowed.chord, '')}
+                        className="text-xs text-gray-500 hover:text-blue-600 underline"
+                      >
+                        自動選択に戻す
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-2">
                     {borrowed.source_candidates.map((candidate, candIndex) => {
@@ -183,10 +179,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, selectedBorrowe
                       return (
                         <div
                           key={candIndex}
-                          className={`flex items-center justify-between p-3 rounded border transition-colors ${
-                            isSelected ? 'bg-blue-100 border-blue-300' : 
-                            isAutoSelected ? 'bg-green-50 border-green-200' : 
-                            'bg-white border-gray-200'
+                          onClick={() => onBorrowedKeySelect(borrowed.chord, candidate.key)}
+                          className={`flex items-center justify-between p-3 rounded border transition-colors cursor-pointer hover:shadow-md ${
+                            isSelected ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-200' : 
+                            isAutoSelected ? 'bg-green-50 border-green-200 hover:bg-green-100' : 
+                            'bg-white border-gray-200 hover:bg-gray-50'
                           }`}
                         >
                           <div className="flex items-center space-x-3">
