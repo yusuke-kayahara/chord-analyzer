@@ -377,7 +377,7 @@ def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str) -> Lis
         borrowing_candidates.append(BorrowedChord(
             chord=chord_symbol,
             non_diatonic_notes=chord_info['non_diatonic_notes'],
-            source_candidates=source_candidates[:3]  # 上位3候補
+            source_candidates=source_candidates[:5]  # 上位5候補（ハーモニックマイナー含むため拡張）
         ))
     
     return borrowing_candidates
