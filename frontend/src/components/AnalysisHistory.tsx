@@ -77,9 +77,7 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
     }
   };
 
-  if (history.length === 0) {
-    return null; // 履歴がない場合は表示しない
-  }
+  // 履歴がない場合でも空の履歴として表示
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
@@ -111,12 +109,18 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
 
       {isExpanded && (
         <div className="space-y-2">
-          {history.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleReplay(item)}
-              className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors group"
-            >
+          {history.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              <p className="text-sm">まだ分析履歴がありません</p>
+              <p className="text-xs mt-1">コード進行を分析すると、ここに履歴が表示されます</p>
+            </div>
+          ) : (
+            history.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleReplay(item)}
+                className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors group"
+              >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
@@ -150,11 +154,14 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
                 </button>
               </div>
             </div>
-          ))}
+            ))
+          )}
           
-          <div className="pt-2 text-xs text-gray-500 text-center">
-            クリックで再分析 • 最大{history.length}/10件まで保存
-          </div>
+          {history.length > 0 && (
+            <div className="pt-2 text-xs text-gray-500 text-center">
+              クリックで再分析 • 最大{history.length}/10件まで保存
+            </div>
+          )}
         </div>
       )}
     </div>

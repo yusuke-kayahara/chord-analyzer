@@ -148,9 +148,6 @@ function App() {
               borrowedChords={state.result.borrowed_chords}
             />
             
-            {/* 分析履歴 */}
-            <AnalysisHistory onReplayAnalysis={handleReplayAnalysis} />
-            
             {/* 使い方のヒント */}
             <div className="w-full max-w-4xl mx-auto p-4 bg-blue-50 rounded-md">
               <h3 className="text-sm font-medium text-blue-800 mb-2">使い方のヒント</h3>
@@ -163,6 +160,9 @@ function App() {
             </div>
           </>
         )}
+
+        {/* 分析履歴 */}
+        <AnalysisHistory onReplayAnalysis={handleReplayAnalysis} />
 
         {/* 機能紹介（結果がない場合） */}
         {!state.result && !state.isAnalyzing && (
