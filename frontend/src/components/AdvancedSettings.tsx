@@ -24,20 +24,26 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     });
   };
 
-  const handleWeightChange = (type: 'traditional' | 'borrowed_chord', value: number) => {
+  const handleWeightChange = (type: 'traditional' | 'borrowed_chord' | 'triad_ratio', value: number) => {
+    const newSettings = { ...settings };
+    
     if (type === 'traditional') {
-      onSettingsChange({
-        ...settings,
-        traditional_weight: value,
-        borrowed_chord_weight: 1.0 - value
-      });
-    } else {
-      onSettingsChange({
-        ...settings,
-        borrowed_chord_weight: value,
-        traditional_weight: 1.0 - value
-      });
+      newSettings.traditional_weight = value;
+    } else if (type === 'borrowed_chord') {
+      newSettings.borrowed_chord_weight = value;
+    } else if (type === 'triad_ratio') {
+      newSettings.triad_ratio_weight = value;
     }
+    
+    // 3つの重みの合計を1.0に正規化
+    const total = newSettings.traditional_weight + newSettings.borrowed_chord_weight + newSettings.triad_ratio_weight;
+    if (total > 0) {
+      newSettings.traditional_weight /= total;
+      newSettings.borrowed_chord_weight /= total;
+      newSettings.triad_ratio_weight /= total;
+    }
+    
+    onSettingsChange(newSettings);
   };
 
   return (
@@ -98,6 +104,19 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <input
                   type="radio"
                   name="algorithm"
+                  value="triad_ratio"
+                  checked={settings.algorithm === 'triad_ratio'}
+                  onChange={(e) => handleAlgorithmChange(e.target.value)}
+                  className="mr-2"
+                />
+                <span className="text-sm">
+                  <strong>トライアド比率分析</strong> - 1,3,5度の構成音比率が高いキーを選択
+                </span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="algorithm"
                   value="traditional"
                   checked={settings.algorithm === 'traditional'}
                   onChange={(e) => handleAlgorithmChange(e.target.value)}
@@ -117,6 +136,21 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 アルゴリズム重み調整
               </label>
               <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                    <span>トライアド比率分析</span>
+                    <span>{(settings.triad_ratio_weight * 100).toFixed(0)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={settings.triad_ratio_weight}
+                    onChange={(e) => handleWeightChange('triad_ratio', parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
                 <div>
                   <div className="flex justify-between text-xs text-gray-600 mb-1">
                     <span>借用和音最小化</span>
@@ -155,9 +189,10 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <div className="p-3 bg-blue-50 rounded-md">
             <h4 className="text-sm font-medium text-blue-800 mb-1">アルゴリズムの特徴</h4>
             <ul className="text-xs text-blue-700 space-y-1">
+              <li>• <strong>トライアド比率分析</strong>: キーの1,3,5度の構成音比率が高いキーを優先</li>
               <li>• <strong>借用和音最小化</strong>: より自然なキー（借用和音が少ない）を優先</li>
               <li>• <strong>従来型</strong>: 音楽理論に基づく統計的類似度を重視</li>
-              <li>• <strong>ハイブリッド</strong>: 両方の長所を組み合わせ、重み調整可能</li>
+              <li>• <strong>ハイブリッド</strong>: 3つのアルゴリズムを組み合わせ、重み調整可能</li>
             </ul>
           </div>
         </div>

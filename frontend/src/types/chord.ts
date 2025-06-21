@@ -1,9 +1,10 @@
 // コード進行分析のTypeScript型定義
 export interface ChordAnalysisRequest {
   chord_input: string;
-  algorithm?: string; // "traditional", "borrowed_chord_minimal", "hybrid"
+  algorithm?: string; // "traditional", "borrowed_chord_minimal", "triad_ratio", "hybrid"
   traditional_weight?: number;
   borrowed_chord_weight?: number;
+  triad_ratio_weight?: number;
 }
 
 export interface KeyCandidate {
@@ -44,5 +45,6 @@ export interface AdvancedSettings {
   algorithm: string;
   traditional_weight: number;
   borrowed_chord_weight: number;
+  triad_ratio_weight: number;
   showAdvanced: boolean;
 }

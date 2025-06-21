@@ -16,8 +16,9 @@ function App() {
   const [apiConnected, setApiConnected] = useState<boolean | null>(null); // null: 未テスト, true: 接続, false: 未接続
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettingsType>({
     algorithm: 'hybrid',
-    traditional_weight: 0.3,
-    borrowed_chord_weight: 0.7,
+    traditional_weight: 0.2,
+    borrowed_chord_weight: 0.3,
+    triad_ratio_weight: 0.5,
     showAdvanced: false
   });
 
@@ -39,7 +40,8 @@ function App() {
         chordInput,
         advancedSettings.algorithm,
         advancedSettings.traditional_weight,
-        advancedSettings.borrowed_chord_weight
+        advancedSettings.borrowed_chord_weight,
+        advancedSettings.triad_ratio_weight
       );
       setState(prev => ({
         ...prev,
