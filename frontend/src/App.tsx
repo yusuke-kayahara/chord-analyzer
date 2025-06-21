@@ -12,7 +12,7 @@ function App() {
     result: null,
   });
   const [lastInput, setLastInput] = useState<string>('');
-  const [apiConnected, setApiConnected] = useState<boolean>(false);
+  const [apiConnected, setApiConnected] = useState<boolean | null>(null); // null: 未テスト, true: 接続, false: 未接続
 
   // API接続テスト
   useEffect(() => {
@@ -66,8 +66,8 @@ function App() {
 
       {/* メインコンテンツ */}
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        {/* API未接続エラー */}
-        {!apiConnected && (
+        {/* API未接続エラー（接続テスト完了後のみ表示） */}
+        {apiConnected === false && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
               <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -76,7 +76,7 @@ function App() {
               <div>
                 <h3 className="text-sm font-medium text-red-800">API接続エラー</h3>
                 <p className="text-sm text-red-700">
-                  バックエンドAPIに接続できません。http://localhost:8000 でサーバーが起動していることを確認してください。
+                  バックエンドAPIに接続できません。しばらく時間をおいて再度お試しください。
                 </p>
               </div>
             </div>
