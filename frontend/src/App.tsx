@@ -3,8 +3,10 @@ import ChordInput from './components/ChordInput';
 import AnalysisResult from './components/AnalysisResult';
 import ChordVisualization from './components/ChordVisualization';
 import AdvancedSettings from './components/AdvancedSettings';
+import AnalysisHistory from './components/AnalysisHistory';
 import { analyzeChordProgression, testApiConnection } from './services/api';
 import { UIState, AdvancedSettings as AdvancedSettingsType } from './types/chord';
+import { HistoryStorage } from './utils/historyStorage';
 
 function App() {
   const [state, setState] = useState<UIState>({
@@ -51,6 +53,9 @@ function App() {
         result,
         error: null,
       }));
+      
+      // 分析成功時に履歴に保存
+      HistoryStorage.saveAnalysis(chordInput, advancedSettings, result);
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -67,6 +72,13 @@ function App() {
       result: null,
     });
     setLastInput('');
+  };
+
+  const handleReplayAnalysis = (chordInput: string, settings: AdvancedSettingsType) => {
+    // 設定を復元
+    setAdvancedSettings(settings);
+    // 分析を再実行
+    handleAnalyze(chordInput);
   };
 
   return (
@@ -135,6 +147,9 @@ function App() {
               mainKey={state.result.main_key}
               borrowedChords={state.result.borrowed_chords}
             />
+            
+            {/* 分析履歴 */}
+            <AnalysisHistory onReplayAnalysis={handleReplayAnalysis} />
             
             {/* 使い方のヒント */}
             <div className="w-full max-w-4xl mx-auto p-4 bg-blue-50 rounded-md">

@@ -50,3 +50,17 @@ export interface AdvancedSettings {
   manual_key: string;
   showAdvanced: boolean;
 }
+
+export interface AnalysisHistory {
+  id: string;
+  timestamp: number;
+  chord_input: string;
+  settings: {
+    algorithm: string;
+    traditional_weight: number;
+    borrowed_chord_weight: number;
+    triad_ratio_weight: number;
+    manual_key: string;
+  };
+  result: ChordAnalysisResponse;
+}
