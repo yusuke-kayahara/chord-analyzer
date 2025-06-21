@@ -57,11 +57,23 @@ NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 KRUMHANSL_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
 KRUMHANSL_MINOR = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
 
+def is_valid_chord(chord: str) -> bool:
+    """コードが有効かどうかを判定"""
+    # 空文字、空白のみ、特殊文字のみは無効
+    if not chord or chord.strip() == '' or chord.strip() == '|':
+        return False
+    
+    # 基本的なコード形式をチェック（A-G で始まる）
+    chord_pattern = r'^[A-G][#b]?'
+    return bool(re.match(chord_pattern, chord.strip()))
+
 def extract_chords(chord_input: str) -> List[str]:
-    """[]で囲まれたコードを抽出する"""
+    """[]で囲まれたコードを抽出する（無効なコードを除外）"""
     pattern = r'\[([^\]]+)\]'
     matches = re.findall(pattern, chord_input)
-    return matches
+    # 有効なコードのみをフィルタリング
+    valid_chords = [chord.strip() for chord in matches if is_valid_chord(chord.strip())]
+    return valid_chords
 
 def normalize_note(note: str) -> str:
     """音名を正規化（異名同音を統一）"""

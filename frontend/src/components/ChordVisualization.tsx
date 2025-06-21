@@ -12,13 +12,28 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
   mainKey,
   borrowedChords
 }) => {
-  // コード進行を抽出
+  // コードが有効かどうかを判定
+  const isValidChord = (chord: string): boolean => {
+    // 空文字、空白のみ、特殊文字のみは無効
+    if (!chord || chord.trim() === '' || chord.trim() === '|') {
+      return false;
+    }
+    
+    // 基本的なコード形式をチェック（A-G で始まる）
+    const chordPattern = /^[A-G][#b]?/;
+    return chordPattern.test(chord.trim());
+  };
+
+  // コード進行を抽出（無効なコードを除外）
   const extractChords = (input: string): string[] => {
     const pattern = /\[([^\]]+)\]/g;
     const matches = [];
     let match;
     while ((match = pattern.exec(input)) !== null) {
-      matches.push(match[1]);
+      const chord = match[1].trim();
+      if (isValidChord(chord)) {
+        matches.push(chord);
+      }
     }
     return matches;
   };
