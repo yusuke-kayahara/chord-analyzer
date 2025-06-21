@@ -18,7 +18,8 @@ export const analyzeChordProgression = async (
   algorithm: string = 'hybrid',
   traditionalWeight: number = 0.2,
   borrowedChordWeight: number = 0.3,
-  triadRatioWeight: number = 0.5
+  triadRatioWeight: number = 0.5,
+  manualKey: string = ''
 ): Promise<ChordAnalysisResponse> => {
   try {
     const request: ChordAnalysisRequest = {
@@ -27,6 +28,7 @@ export const analyzeChordProgression = async (
       traditional_weight: traditionalWeight,
       borrowed_chord_weight: borrowedChordWeight,
       triad_ratio_weight: triadRatioWeight,
+      manual_key: manualKey || undefined,
     };
 
     const response = await api.post<ChordAnalysisResponse>('/analyze', request);

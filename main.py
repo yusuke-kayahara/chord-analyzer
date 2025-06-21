@@ -20,10 +20,11 @@ app.add_middleware(
 # Pydantic models
 class ChordAnalysisRequest(BaseModel):
     chord_input: str
-    algorithm: str = "hybrid"  # "traditional", "borrowed_chord_minimal", "triad_ratio", "hybrid"
+    algorithm: str = "hybrid"  # "traditional", "borrowed_chord_minimal", "triad_ratio", "hybrid", "manual"
     traditional_weight: float = 0.2  # Krumhansl類似度の重み
     borrowed_chord_weight: float = 0.3  # 借用和音最小化の重み
     triad_ratio_weight: float = 0.5  # トライアド比率分析の重み
+    manual_key: str = None  # 手動指定キー（例: "C Major", "A Minor"）
 
 class KeyCandidate(BaseModel):
     key: str
@@ -489,7 +490,21 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
     ))
     
     # ④ アルゴリズム選択
-    if request.algorithm == "traditional":
+    if request.algorithm == "manual" and request.manual_key:
+        # 手動キー指定モード
+        main_key = request.manual_key
+        final_confidence = 1.0  # 手動指定なので信頼度は100%
+        
+        # 手動指定キーの結果を候補に追加
+        manual_borrowed_count = len(detect_non_diatonic_notes(chords, main_key))
+        key_candidates.append(KeyEstimationResult(
+            key=main_key,
+            confidence=1.0,
+            borrowed_chord_count=manual_borrowed_count,
+            algorithm="manual"
+        ))
+        
+    elif request.algorithm == "traditional":
         main_key = traditional_key
         final_confidence = traditional_confidence
     elif request.algorithm == "borrowed_chord_minimal":
@@ -527,6 +542,15 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
         key_candidates=key_candidates,
         algorithm_used=request.algorithm
     )
+
+@app.get("/keys")
+async def get_available_keys():
+    """利用可能なキーのリストを取得"""
+    return {
+        "keys": get_all_keys(),
+        "major_keys": [f"{note} Major" for note in NOTES],
+        "minor_keys": [f"{note} Minor" for note in NOTES]
+    }
 
 @app.get("/")
 async def root():

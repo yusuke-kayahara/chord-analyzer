@@ -19,6 +19,7 @@ function App() {
     traditional_weight: 0.2,
     borrowed_chord_weight: 0.3,
     triad_ratio_weight: 0.5,
+    manual_key: '',
     showAdvanced: false
   });
 
@@ -41,7 +42,8 @@ function App() {
         advancedSettings.algorithm,
         advancedSettings.traditional_weight,
         advancedSettings.borrowed_chord_weight,
-        advancedSettings.triad_ratio_weight
+        advancedSettings.triad_ratio_weight,
+        advancedSettings.manual_key
       );
       setState(prev => ({
         ...prev,

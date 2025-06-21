@@ -24,6 +24,19 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     });
   };
 
+  const handleManualKeyChange = (manualKey: string) => {
+    onSettingsChange({
+      ...settings,
+      manual_key: manualKey
+    });
+  };
+
+  // 利用可能なキーのリスト
+  const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const majorKeys = NOTES.map(note => `${note} Major`);
+  const minorKeys = NOTES.map(note => `${note} Minor`);
+  const allKeys = [...majorKeys, ...minorKeys];
+
   const handleWeightChange = (type: 'traditional' | 'borrowed_chord' | 'triad_ratio', value: number) => {
     const newSettings = { ...settings };
     
@@ -126,6 +139,19 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   <strong>従来型</strong> - Krumhansl調性感プロファイル
                 </span>
               </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="algorithm"
+                  value="manual"
+                  checked={settings.algorithm === 'manual'}
+                  onChange={(e) => handleAlgorithmChange(e.target.value)}
+                  className="mr-2"
+                />
+                <span className="text-sm">
+                  <strong>手動指定</strong> - キーを手動で指定して借用和音分析
+                </span>
+              </label>
             </div>
           </div>
 
@@ -185,6 +211,37 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             </div>
           )}
 
+          {/* 手動キー選択（手動指定モード時のみ） */}
+          {settings.algorithm === 'manual' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                キー指定
+              </label>
+              <select
+                value={settings.manual_key}
+                onChange={(e) => handleManualKeyChange(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">キーを選択してください</option>
+                <optgroup label="メジャーキー">
+                  {majorKeys.map(key => (
+                    <option key={key} value={key}>{key}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="マイナーキー">
+                  {minorKeys.map(key => (
+                    <option key={key} value={key}>{key}</option>
+                  ))}
+                </optgroup>
+              </select>
+              {settings.manual_key && (
+                <p className="mt-2 text-sm text-blue-600">
+                  選択されたキー: <strong>{settings.manual_key}</strong>
+                </p>
+              )}
+            </div>
+          )}
+
           {/* 説明 */}
           <div className="p-3 bg-blue-50 rounded-md">
             <h4 className="text-sm font-medium text-blue-800 mb-1">アルゴリズムの特徴</h4>
@@ -192,7 +249,8 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <li>• <strong>トライアド比率分析</strong>: キーの1,3,5度の構成音比率が高いキーを優先</li>
               <li>• <strong>借用和音最小化</strong>: より自然なキー（借用和音が少ない）を優先</li>
               <li>• <strong>従来型</strong>: 音楽理論に基づく統計的類似度を重視</li>
-              <li>• <strong>ハイブリッド</strong>: 3つのアルゴリズムを組み合わせ、重み調整可能</li>
+              <li>• <strong>手動指定</strong>: 正しいキーを知っている場合の精密な借用和音分析</li>
+              <li>• <strong>ハイブリッド</strong>: 3つの自動アルゴリズムを組み合わせ、重み調整可能</li>
             </ul>
           </div>
         </div>

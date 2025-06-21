@@ -32,6 +32,8 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
         return '借用和音最小化';
       case 'triad_ratio':
         return 'トライアド比率分析';
+      case 'manual':
+        return '手動指定';
       case 'hybrid':
         return 'ハイブリッド';
       default:
