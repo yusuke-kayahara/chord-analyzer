@@ -36,26 +36,102 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     return borrowedChords.find(bc => bc.chord === chord);
   };
 
-  // コード進行の度数分析（簡易版）
-  const analyzeChordFunction = (chord: string): string => {
-    // 簡易的な度数分析（実際にはより複雑な処理が必要）
-    const keyRoot = mainKey.split(' ')[0];
-    const keyType = mainKey.split(' ')[1];
+  // 音名をピッチクラス番号に変換
+  const noteToPC = (note: string): number => {
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const normalized = note.replace('Db', 'C#').replace('Eb', 'D#').replace('Gb', 'F#')
+                          .replace('Ab', 'G#').replace('Bb', 'A#');
+    return notes.indexOf(normalized);
+  };
+
+  // コードのルート音を抽出
+  const getChordRoot = (chord: string): string => {
+    const match = chord.match(/^([A-G][#b]?)/);
+    return match ? match[1] : '';
+  };
+
+  // コードタイプを判定（メジャー、マイナー、ディミニッシュなど）
+  const getChordType = (chord: string): { quality: string; extensions: string } => {
+    const root = getChordRoot(chord);
+    const remainder = chord.slice(root.length);
     
-    // C Majorキーでの度数マッピング（簡易版）
-    const majorDegrees: { [key: string]: string } = {
-      'C': 'I', 'Dm': 'ii', 'Em': 'iii', 'F': 'IV', 'G': 'V', 'Am': 'vi', 'Bdim': 'vii°'
-    };
-    
-    // より完全な実装が必要だが、ここでは基本的なマッピング
-    if (keyRoot === 'C' && keyType === 'Major') {
-      const found = Object.entries(majorDegrees).find(([chordName]) => 
-        chord.startsWith(chordName)
-      );
-      if (found) return found[1];
+    // マイナーコード判定
+    if (remainder.match(/^m(?!aj)/)) {
+      const extensions = remainder.slice(1); // 'm' を除去
+      return { quality: 'minor', extensions };
     }
     
-    return '?';
+    // ディミニッシュコード判定
+    if (remainder.match(/^(dim|°)/)) {
+      const extensions = remainder.replace(/^(dim|°)/, '');
+      return { quality: 'diminished', extensions };
+    }
+    
+    // オーギュメントコード判定
+    if (remainder.match(/^(aug|\+)/)) {
+      const extensions = remainder.replace(/^(aug|\+)/, '');
+      return { quality: 'augmented', extensions };
+    }
+    
+    // メジャーコード（デフォルト）
+    return { quality: 'major', extensions: remainder };
+  };
+
+  // コード進行の度数分析（改良版）
+  const analyzeChordFunction = (chord: string): string => {
+    const keyParts = mainKey.split(' ');
+    if (keyParts.length < 2) return '?';
+    
+    const keyRoot = keyParts[0];
+    const keyType = keyParts[1];
+    
+    const chordRoot = getChordRoot(chord);
+    if (!chordRoot) return '?';
+    
+    const keyPC = noteToPC(keyRoot);
+    const chordPC = noteToPC(chordRoot);
+    
+    if (keyPC === -1 || chordPC === -1) return '?';
+    
+    // キーからの度数を計算
+    const interval = (chordPC - keyPC + 12) % 12;
+    
+    // コードの性質を取得
+    const { quality, extensions } = getChordType(chord);
+    
+    // メジャーキーでの度数マッピング
+    const majorDegrees = ['I', 'bII', 'II', 'bIII', 'III', 'IV', '#IV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
+    // マイナーキーでの度数マッピング
+    const minorDegrees = ['i', 'bII', 'II', 'bIII', 'III', 'iv', '#iv', 'v', 'bVI', 'VI', 'bVII', 'vii'];
+    
+    let baseDegree: string;
+    
+    if (keyType === 'Major') {
+      baseDegree = majorDegrees[interval];
+      // メジャーキーでのコード性質調整
+      if (quality === 'minor') {
+        baseDegree = baseDegree.toLowerCase();
+      } else if (quality === 'diminished') {
+        baseDegree = baseDegree.toLowerCase() + '°';
+      } else if (quality === 'augmented') {
+        baseDegree = baseDegree + '+';
+      }
+    } else if (keyType === 'Minor') {
+      baseDegree = minorDegrees[interval];
+      // マイナーキーでのコード性質調整
+      if (quality === 'major') {
+        baseDegree = baseDegree.toUpperCase();
+      } else if (quality === 'diminished') {
+        baseDegree = baseDegree + '°';
+      } else if (quality === 'augmented') {
+        baseDegree = baseDegree + '+';
+      }
+    } else {
+      return '?';
+    }
+    
+    // 添え字（7, M7, sus4など）を追加
+    return baseDegree + extensions;
   };
 
   return (
