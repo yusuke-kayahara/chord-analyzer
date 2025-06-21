@@ -1,0 +1,150 @@
+import React from 'react';
+import { ChordAnalysisResponse } from '../types/chord';
+
+interface AnalysisResultProps {
+  result: ChordAnalysisResponse;
+}
+
+const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
+  const formatConfidence = (confidence: number): string => {
+    return `${(confidence * 100).toFixed(1)}%`;
+  };
+
+  const getConfidenceColor = (confidence: number): string => {
+    if (confidence >= 0.8) return 'text-green-600';
+    if (confidence >= 0.6) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getRelationshipBadgeColor = (relationship: string): string => {
+    if (relationship.includes('Parallel')) return 'bg-purple-100 text-purple-800';
+    if (relationship.includes('Relative')) return 'bg-blue-100 text-blue-800';
+    if (relationship.includes('Dominant')) return 'bg-red-100 text-red-800';
+    if (relationship.includes('Subdominant')) return 'bg-green-100 text-green-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      {/* メインキー表示 */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">分析結果</h2>
+        <div className="flex items-center space-x-4">
+          <div>
+            <span className="text-sm text-gray-600">推定キー:</span>
+            <span className="ml-2 text-2xl font-bold text-primary-700">
+              {result.main_key}
+            </span>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">信頼度:</span>
+            <span className={`ml-2 text-xl font-semibold ${getConfidenceColor(result.confidence)}`}>
+              {formatConfidence(result.confidence)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ピッチクラスベクトル表示 */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">構成音分布</h3>
+        <div className="grid grid-cols-12 gap-1">
+          {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map((note, index) => {
+            const value = result.pitch_class_vector[index];
+            const height = Math.max(value * 100, 2); // 最小2%の高さ
+            return (
+              <div key={note} className="text-center">
+                <div 
+                  className="bg-primary-500 mb-1 rounded-t"
+                  style={{ height: `${height}px` }}
+                ></div>
+                <div className="text-xs font-medium text-gray-600">{note}</div>
+                <div className="text-xs text-gray-400">
+                  {(value * 100).toFixed(0)}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 借用和音表示 */}
+      {result.borrowed_chords.length > 0 ? (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">
+            借用和音 ({result.borrowed_chords.length}個検出)
+          </h3>
+          <div className="space-y-4">
+            {result.borrowed_chords.map((borrowed, index) => (
+              <div key={index} className="border border-accent-200 rounded-lg p-4 bg-accent-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xl font-bold text-accent-700">
+                    {borrowed.chord}
+                  </h4>
+                  <div className="flex flex-wrap gap-1">
+                    {borrowed.non_diatonic_notes.map((note, noteIndex) => (
+                      <span
+                        key={noteIndex}
+                        className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded"
+                      >
+                        {note}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">借用元候補:</h5>
+                  <div className="space-y-2">
+                    {borrowed.source_candidates.map((candidate, candIndex) => (
+                      <div
+                        key={candIndex}
+                        className="flex items-center justify-between p-3 bg-white rounded border"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className="font-semibold text-gray-800">
+                            {candidate.key}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getRelationshipBadgeColor(candidate.relationship)}`}
+                          >
+                            {candidate.relationship}
+                          </span>
+                        </div>
+                        <div className={`font-semibold ${getConfidenceColor(candidate.confidence)}`}>
+                          {formatConfidence(candidate.confidence)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold text-green-800 mb-2">
+            借用和音は検出されませんでした
+          </h3>
+          <p className="text-green-700">
+            すべてのコードが{result.main_key}のダイアトニック和音です。
+          </p>
+        </div>
+      )}
+
+      {/* 音楽理論解説 */}
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h3 className="text-sm font-medium text-gray-800 mb-2">音楽理論解説</h3>
+        <ul className="text-sm text-gray-600 space-y-1">
+          <li>• <strong>借用和音</strong>: メインキーの外から「借りてきた」和音</li>
+          <li>• <strong>Parallel Minor/Major</strong>: 同じルートの短調/長調から借用</li>
+          <li>• <strong>Secondary Dominant</strong>: 他のキーのドミナント機能を借用</li>
+          <li>• <strong>信頼度</strong>: 借用元キーでの構成音の適合度</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+export default AnalysisResult;
