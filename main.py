@@ -354,14 +354,41 @@ def get_all_keys_for_borrowing() -> List[str]:
         keys.append(f"{note} Harmonic Minor")  # 借用元候補として追加
     return keys
 
-def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str) -> List[BorrowedChord]:
-    """借用元キー候補を特定"""
+def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str, all_chords: List[str] = None) -> List[BorrowedChord]:
+    """借用元キー候補を特定（前後のコードコンテキスト考慮）"""
     borrowing_candidates = []
     all_keys = get_all_keys_for_borrowing()  # ハーモニックマイナー含む
+    
+    # コード進行インデックスマップを作成（コンテキスト取得用）
+    chord_index_map = {}
+    if all_chords:
+        for i, chord in enumerate(all_chords):
+            chord_index_map[chord] = i
     
     for chord_info in non_diatonic_chords:
         chord_symbol = chord_info['chord']
         chord_notes = get_chord_components(chord_symbol)
+        
+        # 前後のコードの構成音を取得（コンテキスト）
+        context_notes = []
+        if all_chords and chord_symbol in chord_index_map:
+            current_index = chord_index_map[chord_symbol]
+            
+            # 前のコードの構成音
+            if current_index > 0:
+                prev_chord = all_chords[current_index - 1]
+                prev_notes = get_chord_components(prev_chord)
+                context_notes.extend(prev_notes)
+            
+            # 次のコードの構成音
+            if current_index < len(all_chords) - 1:
+                next_chord = all_chords[current_index + 1]
+                next_notes = get_chord_components(next_chord)
+                context_notes.extend(next_notes)
+        
+        # 重複除去
+        context_notes = list(set(context_notes)) if context_notes else None
+        
         source_candidates = []
         
         # 全24キーとの照合
@@ -375,7 +402,7 @@ def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str) -> Lis
             normalized_key_notes = [normalize_note(note) for note in key_notes]
             if all(note in normalized_key_notes for note in normalized_chord_notes):
                 relationship = analyze_relationship(main_key, key)
-                confidence = calculate_key_confidence(chord_notes, key)
+                confidence = calculate_key_confidence(chord_notes, key, context_notes)
                 
                 source_candidates.append(KeyCandidate(
                     key=key,
@@ -445,13 +472,13 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
     
     return f"{relationship} ({source_type})"
 
-def calculate_key_confidence(chord_notes: List[str], key: str) -> float:
-    """指定されたキーに対するコードの適合度を計算"""
+def calculate_key_confidence(chord_notes: List[str], key: str, context_notes: List[str] = None, context_weight: float = 0.07) -> float:
+    """指定されたキーに対するコードの適合度を計算（前後の和音コンテキスト考慮）"""
     key_notes = get_diatonic_notes(key)
     if not key_notes:
         return 0.0
     
-    # キーの構成音に含まれる音の割合
+    # メインコードの構成音に含まれる音の割合
     matching_notes = sum(1 for note in chord_notes if note in key_notes)
     if len(chord_notes) == 0:
         return 0.0
@@ -464,7 +491,16 @@ def calculate_key_confidence(chord_notes: List[str], key: str) -> float:
         if root_note in key_notes:
             basic_confidence += 0.1  # ルートがキーに含まれる場合はボーナス
     
-    return min(basic_confidence, 1.0)
+    # コンテキスト（前後の和音）の構成音を考慮
+    context_bonus = 0.0
+    if context_notes:
+        context_matching = sum(1 for note in context_notes if note in key_notes)
+        if len(context_notes) > 0:
+            context_confidence = context_matching / len(context_notes)
+            context_bonus = context_confidence * context_weight
+    
+    total_confidence = basic_confidence + context_bonus
+    return min(total_confidence, 1.0)
 
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_chord_progression(request: ChordAnalysisRequest):
@@ -561,7 +597,7 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
     
     # ⑤ 借用和音検出
     non_diatonic_chords = detect_non_diatonic_notes(chords, main_key)
-    borrowed_chords = find_borrowed_sources(non_diatonic_chords, main_key)
+    borrowed_chords = find_borrowed_sources(non_diatonic_chords, main_key, chords)
     
     return AnalysisResponse(
         main_key=main_key,
