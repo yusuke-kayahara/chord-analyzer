@@ -103,28 +103,6 @@ def rotate_profile(profile: List[float], root: int) -> List[float]:
     """キープロファイルを指定したルートに回転"""
     return profile[root:] + profile[:root]
 
-def enhance_key_weights(pitch_vector: np.ndarray, key_root: int, key_type: str) -> np.ndarray:
-    """キーの重要音（1,3,5度）の重みを強化"""
-    enhanced_vector = pitch_vector.copy()
-    
-    if key_type == "Major":
-        # メジャーキーの1,3,5度（Ionian: 1,3,5度）
-        tonic = key_root % 12           # 1度
-        third = (key_root + 4) % 12     # 長3度
-        fifth = (key_root + 7) % 12     # 完全5度
-    else:  # Minor
-        # マイナーキーの1,3,5度（Natural Minor: 1,♭3,5度）
-        tonic = key_root % 12           # 1度
-        third = (key_root + 3) % 12     # 短3度
-        fifth = (key_root + 7) % 12     # 完全5度
-    
-    # 重要音の重みを1.5倍に強化
-    enhanced_vector[tonic] *= 1.5   # トニック（最重要）
-    enhanced_vector[third] *= 1.3   # 3度
-    enhanced_vector[fifth] *= 1.4   # 5度
-    
-    return enhanced_vector
-
 def find_best_key(pitch_vector: np.ndarray):
     """最適なキーを見つける（改良版：重要音重み付けあり）"""
     best_similarity = -1
@@ -132,7 +110,20 @@ def find_best_key(pitch_vector: np.ndarray):
     
     for root in range(12):
         # メジャーキーとの類似度（重み付きベクトルで比較）
-        enhanced_vector = enhance_key_weights(pitch_vector, root, "Major")
+        enhanced_vector = pitch_vector.copy()
+        
+        # メジャーキーの重要音に重み付け
+        tonic = root % 12
+        third = (root + 4) % 12
+        fifth = (root + 7) % 12
+        
+        if enhanced_vector[tonic] > 0:
+            enhanced_vector[tonic] *= 1.5
+        if enhanced_vector[third] > 0:
+            enhanced_vector[third] *= 1.3
+        if enhanced_vector[fifth] > 0:
+            enhanced_vector[fifth] *= 1.4
+        
         major_profile = rotate_profile(KRUMHANSL_MAJOR, root)
         similarity = cosine_similarity([enhanced_vector], [major_profile])[0][0]
         
@@ -141,7 +132,20 @@ def find_best_key(pitch_vector: np.ndarray):
             best_key = f"{NOTES[root]} Major"
             
         # マイナーキーとの類似度（重み付きベクトルで比較）
-        enhanced_vector = enhance_key_weights(pitch_vector, root, "Minor")
+        enhanced_vector = pitch_vector.copy()
+        
+        # マイナーキーの重要音に重み付け
+        tonic = root % 12
+        third = (root + 3) % 12  # 短3度
+        fifth = (root + 7) % 12
+        
+        if enhanced_vector[tonic] > 0:
+            enhanced_vector[tonic] *= 1.5
+        if enhanced_vector[third] > 0:
+            enhanced_vector[third] *= 1.3
+        if enhanced_vector[fifth] > 0:
+            enhanced_vector[fifth] *= 1.4
+        
         minor_profile = rotate_profile(KRUMHANSL_MINOR, root)
         similarity = cosine_similarity([enhanced_vector], [minor_profile])[0][0]
         
