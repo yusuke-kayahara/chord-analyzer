@@ -24,12 +24,25 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
     return 'bg-gray-100 text-gray-800';
   };
 
+  const getAlgorithmName = (algorithm: string): string => {
+    switch (algorithm) {
+      case 'traditional':
+        return 'Krumhansl類似度';
+      case 'borrowed_chord_minimal':
+        return '借用和音最小化';
+      case 'hybrid':
+        return 'ハイブリッド';
+      default:
+        return algorithm;
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       {/* メインキー表示 */}
       <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-50 rounded-lg">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">分析結果</h2>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 mb-3">
           <div>
             <span className="text-sm text-gray-600">推定キー:</span>
             <span className="ml-2 text-2xl font-bold text-blue-700">
@@ -43,7 +56,55 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
             </span>
           </div>
         </div>
+        <div className="text-xs text-gray-500">
+          使用アルゴリズム: {getAlgorithmName(result.algorithm_used)}
+        </div>
       </div>
+
+      {/* アルゴリズム比較（複数結果がある場合） */}
+      {result.key_candidates && result.key_candidates.length > 1 && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">アルゴリズム比較</h3>
+          <div className="grid gap-2">
+            {result.key_candidates.map((candidate, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded border ${
+                  candidate.key === result.main_key 
+                    ? 'bg-blue-100 border-blue-300' 
+                    : 'bg-white border-gray-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <span className={`font-semibold ${
+                      candidate.key === result.main_key ? 'text-blue-700' : 'text-gray-700'
+                    }`}>
+                      {candidate.key}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {getAlgorithmName(candidate.algorithm)}
+                    </span>
+                    {candidate.key === result.main_key && (
+                      <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                        選択
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3 text-sm">
+                    <span className={getConfidenceColor(candidate.confidence)}>
+                      {formatConfidence(candidate.confidence)}
+                    </span>
+                    <span className="text-gray-600">
+                      借用: {candidate.borrowed_chord_count}個
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ピッチクラスベクトル表示 */}
       <div className="mb-6">

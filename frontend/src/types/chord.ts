@@ -1,6 +1,9 @@
 // コード進行分析のTypeScript型定義
 export interface ChordAnalysisRequest {
   chord_input: string;
+  algorithm?: string; // "traditional", "borrowed_chord_minimal", "hybrid"
+  traditional_weight?: number;
+  borrowed_chord_weight?: number;
 }
 
 export interface KeyCandidate {
@@ -15,15 +18,31 @@ export interface BorrowedChord {
   source_candidates: KeyCandidate[];
 }
 
+export interface KeyEstimationResult {
+  key: string;
+  confidence: number;
+  borrowed_chord_count: number;
+  algorithm: string;
+}
+
 export interface ChordAnalysisResponse {
   main_key: string;
   confidence: number;
   borrowed_chords: BorrowedChord[];
   pitch_class_vector: number[];
+  key_candidates: KeyEstimationResult[];
+  algorithm_used: string;
 }
 
 export interface UIState {
   isAnalyzing: boolean;
   error: string | null;
   result: ChordAnalysisResponse | null;
+}
+
+export interface AdvancedSettings {
+  algorithm: string;
+  traditional_weight: number;
+  borrowed_chord_weight: number;
+  showAdvanced: boolean;
 }

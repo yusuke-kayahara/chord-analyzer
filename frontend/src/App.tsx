@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import ChordInput from './components/ChordInput';
 import AnalysisResult from './components/AnalysisResult';
 import ChordVisualization from './components/ChordVisualization';
+import AdvancedSettings from './components/AdvancedSettings';
 import { analyzeChordProgression, testApiConnection } from './services/api';
-import { UIState } from './types/chord';
+import { UIState, AdvancedSettings as AdvancedSettingsType } from './types/chord';
 
 function App() {
   const [state, setState] = useState<UIState>({
@@ -13,6 +14,12 @@ function App() {
   });
   const [lastInput, setLastInput] = useState<string>('');
   const [apiConnected, setApiConnected] = useState<boolean | null>(null); // null: 未テスト, true: 接続, false: 未接続
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettingsType>({
+    algorithm: 'hybrid',
+    traditional_weight: 0.3,
+    borrowed_chord_weight: 0.7,
+    showAdvanced: false
+  });
 
   // API接続テスト
   useEffect(() => {
@@ -28,7 +35,12 @@ function App() {
     setLastInput(chordInput);
 
     try {
-      const result = await analyzeChordProgression(chordInput);
+      const result = await analyzeChordProgression(
+        chordInput,
+        advancedSettings.algorithm,
+        advancedSettings.traditional_weight,
+        advancedSettings.borrowed_chord_weight
+      );
       setState(prev => ({
         ...prev,
         isAnalyzing: false,
@@ -97,6 +109,12 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* 詳細設定 */}
+        <AdvancedSettings
+          settings={advancedSettings}
+          onSettingsChange={setAdvancedSettings}
+        />
 
         {/* コード入力 */}
         <ChordInput

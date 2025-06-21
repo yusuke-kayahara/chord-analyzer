@@ -14,11 +14,17 @@ const api = axios.create({
 
 // コード進行分析API
 export const analyzeChordProgression = async (
-  chordInput: string
+  chordInput: string,
+  algorithm: string = 'hybrid',
+  traditionalWeight: number = 0.3,
+  borrowedChordWeight: number = 0.7
 ): Promise<ChordAnalysisResponse> => {
   try {
     const request: ChordAnalysisRequest = {
       chord_input: chordInput,
+      algorithm,
+      traditional_weight: traditionalWeight,
+      borrowed_chord_weight: borrowedChordWeight,
     };
 
     const response = await api.post<ChordAnalysisResponse>('/analyze', request);

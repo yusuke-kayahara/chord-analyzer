@@ -20,6 +20,9 @@ app.add_middleware(
 # Pydantic models
 class ChordAnalysisRequest(BaseModel):
     chord_input: str
+    algorithm: str = "hybrid"  # "traditional", "borrowed_chord_minimal", "hybrid"
+    traditional_weight: float = 0.3  # Krumhansl類似度の重み
+    borrowed_chord_weight: float = 0.7  # 借用和音最小化の重み
 
 class KeyCandidate(BaseModel):
     key: str
@@ -31,11 +34,19 @@ class BorrowedChord(BaseModel):
     non_diatonic_notes: List[str]
     source_candidates: List[KeyCandidate]
 
+class KeyEstimationResult(BaseModel):
+    key: str
+    confidence: float
+    borrowed_chord_count: int
+    algorithm: str
+
 class AnalysisResponse(BaseModel):
     main_key: str
     confidence: float
     borrowed_chords: List[BorrowedChord]
     pitch_class_vector: List[float]
+    key_candidates: List[KeyEstimationResult]  # 各アルゴリズムの結果
+    algorithm_used: str
 
 # Constants
 NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -150,6 +161,50 @@ def find_best_key(pitch_vector: np.ndarray):
             best_key = f"{NOTES[root]} Minor"
     
     return best_key, best_similarity
+
+def find_key_by_borrowed_chord_minimization(chords: List[str]):
+    """借用和音が最少になるキーを探す"""
+    all_keys = get_all_keys()
+    best_key = None
+    min_borrowed_count = float('inf')
+    best_confidence = 0
+    
+    for key in all_keys:
+        diatonic_notes = get_diatonic_notes(key)
+        normalized_diatonic_notes = [normalize_note(note) for note in diatonic_notes]
+        
+        borrowed_count = 0
+        total_chord_notes = 0
+        matching_notes = 0
+        
+        for chord_symbol in chords:
+            chord_notes = get_chord_components(chord_symbol)
+            total_chord_notes += len(chord_notes)
+            
+            # このコードが借用和音かどうかをチェック
+            normalized_chord_notes = [normalize_note(note) for note in chord_notes]
+            non_diatonic_notes = [note for note in chord_notes 
+                                if normalize_note(note) not in normalized_diatonic_notes]
+            
+            if non_diatonic_notes:
+                borrowed_count += 1
+            
+            # マッチする音の数もカウント（信頼度計算用）
+            for note in chord_notes:
+                if normalize_note(note) in normalized_diatonic_notes:
+                    matching_notes += 1
+        
+        # 信頼度 = ダイアトニック音の割合
+        confidence = matching_notes / total_chord_notes if total_chord_notes > 0 else 0
+        
+        # より少ない借用和音、同じ借用和音数なら高い信頼度を優先
+        if (borrowed_count < min_borrowed_count or 
+            (borrowed_count == min_borrowed_count and confidence > best_confidence)):
+            min_borrowed_count = borrowed_count
+            best_key = key
+            best_confidence = confidence
+    
+    return best_key, best_confidence, min_borrowed_count
 
 # ダイアトニックスケール定義
 MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]  # W-W-H-W-W-W-H
@@ -321,7 +376,7 @@ def calculate_key_confidence(chord_notes: List[str], key: str) -> float:
 
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_chord_progression(request: ChordAnalysisRequest):
-    """コード進行を分析する"""
+    """コード進行を分析する（複数アルゴリズム対応）"""
     
     # ① コード抽出
     chords = extract_chords(request.chord_input)
@@ -331,24 +386,83 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
             main_key="Unknown",
             confidence=0.0,
             borrowed_chords=[],
-            pitch_class_vector=[0.0] * 12
+            pitch_class_vector=[0.0] * 12,
+            key_candidates=[],
+            algorithm_used=request.algorithm
         )
     
     # ② 構成音抽出・ベクトル化
     pitch_vector = create_pitch_class_vector(chords)
     
-    # ③ メインキー推定
-    main_key, confidence = find_best_key(pitch_vector)
+    # ③ 各アルゴリズムでキー推定
+    key_candidates = []
     
-    # ④ 借用和音検出
+    # 従来のアルゴリズム（Krumhansl）
+    traditional_key, traditional_confidence = find_best_key(pitch_vector)
+    traditional_borrowed_count = len(detect_non_diatonic_notes(chords, traditional_key))
+    key_candidates.append(KeyEstimationResult(
+        key=traditional_key,
+        confidence=traditional_confidence,
+        borrowed_chord_count=traditional_borrowed_count,
+        algorithm="traditional"
+    ))
+    
+    # 借用和音最小化アルゴリズム
+    minimal_key, minimal_confidence, minimal_borrowed_count = find_key_by_borrowed_chord_minimization(chords)
+    key_candidates.append(KeyEstimationResult(
+        key=minimal_key,
+        confidence=minimal_confidence,
+        borrowed_chord_count=minimal_borrowed_count,
+        algorithm="borrowed_chord_minimal"
+    ))
+    
+    # ④ アルゴリズム選択
+    if request.algorithm == "traditional":
+        main_key = traditional_key
+        final_confidence = traditional_confidence
+    elif request.algorithm == "borrowed_chord_minimal":
+        main_key = minimal_key
+        final_confidence = minimal_confidence
+    else:  # hybrid
+        # 重み付き組み合わせ
+        traditional_score = traditional_confidence * request.traditional_weight
+        minimal_score = (1.0 - minimal_borrowed_count / len(chords)) * request.borrowed_chord_weight
+        
+        if traditional_score + (1.0 - minimal_borrowed_count / len(chords)) * request.borrowed_chord_weight >= \
+           minimal_confidence * request.traditional_weight + minimal_score:
+            main_key = traditional_key
+            final_confidence = traditional_confidence
+        else:
+            main_key = minimal_key
+            final_confidence = minimal_confidence
+        
+        # より単純な判定：借用和音が少ない方を優先
+        if minimal_borrowed_count < traditional_borrowed_count:
+            main_key = minimal_key
+            final_confidence = minimal_confidence
+        elif minimal_borrowed_count == traditional_borrowed_count:
+            # 同じ借用和音数なら信頼度が高い方
+            if minimal_confidence > traditional_confidence:
+                main_key = minimal_key
+                final_confidence = minimal_confidence
+            else:
+                main_key = traditional_key
+                final_confidence = traditional_confidence
+        else:
+            main_key = traditional_key
+            final_confidence = traditional_confidence
+    
+    # ⑤ 借用和音検出
     non_diatonic_chords = detect_non_diatonic_notes(chords, main_key)
     borrowed_chords = find_borrowed_sources(non_diatonic_chords, main_key)
     
     return AnalysisResponse(
         main_key=main_key,
-        confidence=confidence,
+        confidence=final_confidence,
         borrowed_chords=borrowed_chords,
-        pitch_class_vector=pitch_vector.tolist()
+        pitch_class_vector=pitch_vector.tolist(),
+        key_candidates=key_candidates,
+        algorithm_used=request.algorithm
     )
 
 @app.get("/")
