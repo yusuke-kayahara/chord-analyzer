@@ -20,9 +20,10 @@ app.add_middleware(
 # Pydantic models
 class ChordAnalysisRequest(BaseModel):
     chord_input: str
-    algorithm: str = "hybrid"  # "traditional", "borrowed_chord_minimal", "hybrid"
-    traditional_weight: float = 0.3  # Krumhansl類似度の重み
-    borrowed_chord_weight: float = 0.7  # 借用和音最小化の重み
+    algorithm: str = "hybrid"  # "traditional", "borrowed_chord_minimal", "triad_ratio", "hybrid"
+    traditional_weight: float = 0.2  # Krumhansl類似度の重み
+    borrowed_chord_weight: float = 0.3  # 借用和音最小化の重み
+    triad_ratio_weight: float = 0.5  # トライアド比率分析の重み
 
 class KeyCandidate(BaseModel):
     key: str
@@ -205,6 +206,67 @@ def find_key_by_borrowed_chord_minimization(chords: List[str]):
             best_confidence = confidence
     
     return best_key, best_confidence, min_borrowed_count
+
+def find_key_by_triad_ratio_analysis(pitch_vector: np.ndarray):
+    """構成音分布でトライアド（1,3,5度）比率が高いキーを優先する"""
+    best_key = None
+    best_score = -1
+    best_confidence = 0
+    
+    all_keys = get_all_keys()
+    
+    for key in all_keys:
+        parts = key.split()
+        if len(parts) != 2:
+            continue
+            
+        root_note = parts[0]
+        key_type = parts[1]
+        
+        try:
+            root_pc = note_to_pitch_class(root_note)
+        except:
+            continue
+        
+        # キーのトライアド音程を計算
+        if key_type == "Major":
+            third_pc = (root_pc + 4) % 12  # 長3度
+            fifth_pc = (root_pc + 7) % 12  # 完全5度
+        else:  # Minor
+            third_pc = (root_pc + 3) % 12  # 短3度
+            fifth_pc = (root_pc + 7) % 12  # 完全5度
+        
+        # トライアド音の構成音分布での比率を計算
+        triad_ratio = pitch_vector[root_pc] + pitch_vector[third_pc] + pitch_vector[fifth_pc]
+        total_distribution = np.sum(pitch_vector)
+        
+        if total_distribution > 0:
+            triad_percentage = triad_ratio / total_distribution
+        else:
+            triad_percentage = 0
+        
+        # スコア計算：トライアド比率に重み付け
+        # トライアド比率が高いほど、そのキーである可能性が高い
+        base_confidence = min(triad_percentage * 2.0, 1.0)  # 最大100%
+        
+        # 追加ボーナス：トライアドが完全に揃っている場合
+        triad_completeness = 0
+        if pitch_vector[root_pc] > 0:
+            triad_completeness += 0.4  # ルート音
+        if pitch_vector[third_pc] > 0:
+            triad_completeness += 0.3  # 3度
+        if pitch_vector[fifth_pc] > 0:
+            triad_completeness += 0.3  # 5度
+        
+        # 最終スコア = トライアド比率 + 完全性ボーナス
+        final_score = triad_percentage + (triad_completeness * 0.3)
+        
+        if final_score > best_score:
+            best_score = final_score
+            best_key = key
+            best_confidence = base_confidence
+    
+    return best_key, best_confidence, best_score
 
 # ダイアトニックスケール定義
 MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]  # W-W-H-W-W-W-H
@@ -416,6 +478,16 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
         algorithm="borrowed_chord_minimal"
     ))
     
+    # トライアド比率分析アルゴリズム
+    triad_key, triad_confidence, triad_score = find_key_by_triad_ratio_analysis(pitch_vector)
+    triad_borrowed_count = len(detect_non_diatonic_notes(chords, triad_key))
+    key_candidates.append(KeyEstimationResult(
+        key=triad_key,
+        confidence=triad_confidence,
+        borrowed_chord_count=triad_borrowed_count,
+        algorithm="triad_ratio"
+    ))
+    
     # ④ アルゴリズム選択
     if request.algorithm == "traditional":
         main_key = traditional_key
@@ -423,34 +495,25 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
     elif request.algorithm == "borrowed_chord_minimal":
         main_key = minimal_key
         final_confidence = minimal_confidence
+    elif request.algorithm == "triad_ratio":
+        main_key = triad_key
+        final_confidence = triad_confidence
     else:  # hybrid
-        # 重み付き組み合わせ
+        # 3つのアルゴリズムの重み付きスコア計算
         traditional_score = traditional_confidence * request.traditional_weight
         minimal_score = (1.0 - minimal_borrowed_count / len(chords)) * request.borrowed_chord_weight
+        triad_score = triad_score * request.triad_ratio_weight
         
-        if traditional_score + (1.0 - minimal_borrowed_count / len(chords)) * request.borrowed_chord_weight >= \
-           minimal_confidence * request.traditional_weight + minimal_score:
-            main_key = traditional_key
-            final_confidence = traditional_confidence
-        else:
-            main_key = minimal_key
-            final_confidence = minimal_confidence
+        # 最高スコアのアルゴリズムを選択
+        scores = [
+            (traditional_score, traditional_key, traditional_confidence),
+            (minimal_score, minimal_key, minimal_confidence),
+            (triad_score, triad_key, triad_confidence)
+        ]
         
-        # より単純な判定：借用和音が少ない方を優先
-        if minimal_borrowed_count < traditional_borrowed_count:
-            main_key = minimal_key
-            final_confidence = minimal_confidence
-        elif minimal_borrowed_count == traditional_borrowed_count:
-            # 同じ借用和音数なら信頼度が高い方
-            if minimal_confidence > traditional_confidence:
-                main_key = minimal_key
-                final_confidence = minimal_confidence
-            else:
-                main_key = traditional_key
-                final_confidence = traditional_confidence
-        else:
-            main_key = traditional_key
-            final_confidence = traditional_confidence
+        best_score, best_key_result, best_confidence_result = max(scores, key=lambda x: x[0])
+        main_key = best_key_result
+        final_confidence = best_confidence_result
     
     # ⑤ 借用和音検出
     non_diatonic_chords = detect_non_diatonic_notes(chords, main_key)
