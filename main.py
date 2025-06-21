@@ -272,15 +272,16 @@ def find_key_by_triad_ratio_analysis(pitch_vector: np.ndarray):
 # ダイアトニックスケール定義
 MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]  # W-W-H-W-W-W-H
 MINOR_SCALE_INTERVALS = [0, 2, 3, 5, 7, 8, 10]  # W-H-W-W-H-W-W
+HARMONIC_MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 11]  # W-H-W-W-H-W+H-H (7度が短7度→長7度)
 
 def get_diatonic_notes(key: str) -> List[str]:
     """指定されたキーのダイアトニック音を取得"""
     parts = key.split()
-    if len(parts) != 2:
+    if len(parts) < 2:
         return []
     
     root_note = parts[0]
-    key_type = parts[1]
+    key_type = " ".join(parts[1:])  # "Harmonic Minor"のように複数語に対応
     
     try:
         root_pc = note_to_pitch_class(root_note)
@@ -291,6 +292,8 @@ def get_diatonic_notes(key: str) -> List[str]:
         intervals = MAJOR_SCALE_INTERVALS
     elif key_type == "Minor":
         intervals = MINOR_SCALE_INTERVALS
+    elif key_type == "Harmonic Minor":
+        intervals = HARMONIC_MINOR_INTERVALS
     else:
         return []
     
@@ -323,17 +326,26 @@ def detect_non_diatonic_notes(chords: List[str], main_key: str) -> List[dict]:
     return non_diatonic_chords
 
 def get_all_keys() -> List[str]:
-    """全24キー（メジャー・マイナー）のリストを取得"""
+    """全24キー（メジャー・マイナー）のリストを取得（主要キー推定用）"""
     keys = []
     for note in NOTES:
         keys.append(f"{note} Major")
         keys.append(f"{note} Minor")
     return keys
 
+def get_all_keys_for_borrowing() -> List[str]:
+    """借用元候補のキーリストを取得（ハーモニックマイナー含む）"""
+    keys = []
+    for note in NOTES:
+        keys.append(f"{note} Major")
+        keys.append(f"{note} Minor")
+        keys.append(f"{note} Harmonic Minor")  # 借用元候補として追加
+    return keys
+
 def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str) -> List[BorrowedChord]:
     """借用元キー候補を特定"""
     borrowing_candidates = []
-    all_keys = get_all_keys()
+    all_keys = get_all_keys_for_borrowing()  # ハーモニックマイナー含む
     
     for chord_info in non_diatonic_chords:
         chord_symbol = chord_info['chord']
@@ -375,13 +387,13 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
     main_parts = main_key.split()
     source_parts = source_key.split()
     
-    if len(main_parts) != 2 or len(source_parts) != 2:
+    if len(main_parts) < 2 or len(source_parts) < 2:
         return "Unknown"
     
     main_root = main_parts[0]
-    main_type = main_parts[1]
+    main_type = " ".join(main_parts[1:])
     source_root = source_parts[0]
-    source_type = source_parts[1]
+    source_type = " ".join(source_parts[1:])
     
     main_pc = note_to_pitch_class(main_root)
     source_pc = note_to_pitch_class(source_root)
@@ -389,7 +401,10 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
     # 同じルートの場合
     if main_pc == source_pc:
         if main_type != source_type:
-            return "Parallel Minor/Major"
+            if source_type == "Harmonic Minor":
+                return "Parallel Harmonic Minor"
+            else:
+                return "Parallel Minor/Major"
         else:
             return "Same Key"
     
@@ -413,6 +428,8 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
         return "Dominant Relationship"
     elif interval == 5:  # 完全4度
         return "Subdominant Relationship"
+    elif source_type == "Harmonic Minor":
+        return f"{relationship} (Harmonic Minor)"
     
     return f"{relationship} ({source_type})"
 
