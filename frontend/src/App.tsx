@@ -159,6 +159,7 @@ function App() {
         <ChordInput
           onAnalyze={handleAnalyze}
           isAnalyzing={state.isAnalyzing}
+          initialInput={lastInput}
         />
 
         {/* 分析結果 */}

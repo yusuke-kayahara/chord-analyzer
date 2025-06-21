@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface ChordInputProps {
   onAnalyze: (chordInput: string) => void;
   isAnalyzing: boolean;
+  initialInput?: string; // 外部から初期値を設定可能
 }
 
-const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
-  const [input, setInput] = useState('');
+const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing, initialInput = '' }) => {
+  const [input, setInput] = useState(initialInput);
   const [examples] = useState([
     '[CM7][Am7][FM7][G7]',
     '[C][Am][Fm][G]', 
@@ -14,6 +15,11 @@ const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
     '[C][Ab][F][G]',
     '[Am][F][C][G]'
   ]);
+
+  // 外部から初期値が変更された時に入力フィールドを更新
+  useEffect(() => {
+    setInput(initialInput);
+  }, [initialInput]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
