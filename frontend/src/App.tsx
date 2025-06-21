@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ChordInput from './components/ChordInput';
 import AnalysisResult from './components/AnalysisResult';
 import ChordVisualization from './components/ChordVisualization';
 import AdvancedSettings from './components/AdvancedSettings';
 import AnalysisHistory from './components/AnalysisHistory';
+import ShareButton from './components/ShareButton';
 import { analyzeChordProgression, testApiConnection } from './services/api';
 import { UIState, AdvancedSettings as AdvancedSettingsType } from './types/chord';
 import { HistoryStorage } from './utils/historyStorage';
+import { URLSharing } from './utils/urlSharing';
 
 function App() {
   const [state, setState] = useState<UIState>({
@@ -25,16 +27,7 @@ function App() {
     showAdvanced: false
   });
 
-  // API接続テスト
-  useEffect(() => {
-    const checkConnection = async () => {
-      const connected = await testApiConnection();
-      setApiConnected(connected);
-    };
-    checkConnection();
-  }, []);
-
-  const handleAnalyze = async (chordInput: string, saveToHistory: boolean = true) => {
+  const handleAnalyze = useCallback(async (chordInput: string, saveToHistory: boolean = true) => {
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
     setLastInput(chordInput);
 
@@ -65,7 +58,7 @@ function App() {
         error: error instanceof Error ? error.message : 'Unknown error occurred',
       }));
     }
-  };
+  }, [advancedSettings]);
 
   const clearResults = () => {
     setState({
@@ -82,6 +75,34 @@ function App() {
     // 分析を再実行（履歴には保存しない）
     handleAnalyze(chordInput, false);
   };
+
+  // API接続テスト
+  useEffect(() => {
+    const checkConnection = async () => {
+      const connected = await testApiConnection();
+      setApiConnected(connected);
+    };
+    checkConnection();
+  }, []);
+
+  // URL共有からの復元機能
+  useEffect(() => {
+    const urlData = URLSharing.decodeAnalysisFromURL();
+    if (urlData) {
+      const { chordInput, settings } = urlData;
+      
+      // 設定を復元
+      setAdvancedSettings(settings);
+      
+      // 分析を自動実行（履歴には保存しない）
+      setTimeout(() => {
+        handleAnalyze(chordInput, false);
+      }, 500); // API接続確認後に実行
+      
+      // URLパラメータをクリア（任意）
+      // URLSharing.clearURLParams();
+    }
+  }, [handleAnalyze]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -149,6 +170,14 @@ function App() {
               mainKey={state.result.main_key}
               borrowedChords={state.result.borrowed_chords}
             />
+            
+            {/* 共有ボタン */}
+            <div className="w-full max-w-4xl mx-auto flex justify-center mb-4">
+              <ShareButton 
+                chordInput={lastInput}
+                settings={advancedSettings}
+              />
+            </div>
             
             {/* 使い方のヒント */}
             <div className="w-full max-w-4xl mx-auto p-4 bg-blue-50 rounded-md">
