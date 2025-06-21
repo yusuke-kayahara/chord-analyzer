@@ -31,9 +31,6 @@ const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          コード進行を入力
-        </h2>
         <p className="text-gray-600">
           []で囲まれたコードネームを入力してください。借用和音を自動検出します。
         </p>
@@ -88,16 +85,6 @@ const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing }) => {
           )}
         </button>
       </form>
-
-      <div className="mt-6 p-4 bg-blue-50 rounded-md">
-        <h3 className="text-sm font-medium text-blue-800 mb-2">使い方のヒント</h3>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• コードは []で囲んで入力してください</li>
-          <li>• 例: [CM7][Am7][Fm][G7] → FmがC Minorからの借用和音として検出されます</li>
-          <li>• 複雑なコード（テンション含む）も対応: [FM7(13)][FmM7]</li>
-          <li>• セカンダリドミナント（V/ii等）も自動検出されます</li>
-        </ul>
-      </div>
     </div>
   );
 };

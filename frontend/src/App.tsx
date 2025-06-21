@@ -58,37 +58,9 @@ function App() {
       {/* ヘッダー */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                コード進行分析ツール
-              </h1>
-              <p className="mt-1 text-gray-600">
-                借用和音を自動検出・分析する音楽理論アプリケーション
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* API接続状態 */}
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  apiConnected ? 'bg-green-500' : 'bg-red-500'
-                }`}></div>
-                <span className="text-sm text-gray-600">
-                  API {apiConnected ? '接続中' : '未接続'}
-                </span>
-              </div>
-              
-              {/* クリアボタン */}
-              {state.result && (
-                <button
-                  onClick={clearResults}
-                  className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                >
-                  新規分析
-                </button>
-              )}
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 text-center">
+            コード進行分析ツール
+          </h1>
         </div>
       </header>
 
@@ -141,6 +113,17 @@ function App() {
               mainKey={state.result.main_key}
               borrowedChords={state.result.borrowed_chords}
             />
+            
+            {/* 使い方のヒント */}
+            <div className="w-full max-w-4xl mx-auto p-4 bg-blue-50 rounded-md">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">使い方のヒント</h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• コードは []で囲んで入力してください</li>
+                <li>• 例: [CM7][Am7][Fm][G7] → FmがC Minorからの借用和音として検出されます</li>
+                <li>• 複雑なコード（テンション含む）も対応: [FM7(13)][FmM7]</li>
+                <li>• セカンダリドミナント（V/ii等）も自動検出されます</li>
+              </ul>
+            </div>
           </>
         )}
 
