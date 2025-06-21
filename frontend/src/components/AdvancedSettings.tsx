@@ -97,7 +97,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   className="mr-2"
                 />
                 <span className="text-sm">
-                  <strong>ハイブリッド（推奨）</strong> - 借用和音最小化 + Krumhansl類似度
+                  <strong>複合最適化（推奨）</strong> - 複数アルゴリズムの重み付き統合
                 </span>
               </label>
               <label className="flex items-center">
@@ -110,7 +110,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   className="mr-2"
                 />
                 <span className="text-sm">
-                  <strong>借用和音最小化</strong> - 借用和音が最も少ないキーを選択
+                  <strong>借用和音数最小化</strong> - 借用和音が最も少ないキーを選択
                 </span>
               </label>
               <label className="flex items-center">
@@ -123,7 +123,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   className="mr-2"
                 />
                 <span className="text-sm">
-                  <strong>トライアド比率分析</strong> - 1,3,5度の構成音比率が高いキーを選択
+                  <strong>トライアド比率最大化</strong> - 1,3,5度の構成音比率が高いキーを選択
                 </span>
               </label>
               <label className="flex items-center">
@@ -136,7 +136,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   className="mr-2"
                 />
                 <span className="text-sm">
-                  <strong>従来型</strong> - Krumhansl調性感プロファイル
+                  <strong>調性感類似度最大化</strong> - Krumhansl調性感プロファイル
                 </span>
               </label>
               <label className="flex items-center">

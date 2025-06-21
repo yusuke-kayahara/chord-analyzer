@@ -68,11 +68,11 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
 
   const getAlgorithmName = (algorithm: string): string => {
     switch (algorithm) {
-      case 'traditional': return 'Krumhansl';
-      case 'borrowed_chord_minimal': return '借用最小';
-      case 'triad_ratio': return 'トライアド';
+      case 'traditional': return '類似度最大';
+      case 'borrowed_chord_minimal': return '借用数最小';
+      case 'triad_ratio': return '比率最大';
       case 'manual': return '手動指定';
-      case 'hybrid': return 'ハイブリッド';
+      case 'hybrid': return '複合最適';
       default: return algorithm;
     }
   };

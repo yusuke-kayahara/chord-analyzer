@@ -27,15 +27,15 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
   const getAlgorithmName = (algorithm: string): string => {
     switch (algorithm) {
       case 'traditional':
-        return 'Krumhansl類似度';
+        return '調性感類似度最大化';
       case 'borrowed_chord_minimal':
-        return '借用和音最小化';
+        return '借用和音数最小化';
       case 'triad_ratio':
-        return 'トライアド比率分析';
+        return 'トライアド比率最大化';
       case 'manual':
         return '手動指定';
       case 'hybrid':
-        return 'ハイブリッド';
+        return '複合最適化';
       default:
         return algorithm;
     }
