@@ -45,6 +45,9 @@ export class HistoryStorage {
       const filteredHistory = history.filter(item => 
         !(item.chord_input === chordInput && 
           item.settings.algorithm === settings.algorithm &&
+          item.settings.traditional_weight === settings.traditional_weight &&
+          item.settings.borrowed_chord_weight === settings.borrowed_chord_weight &&
+          item.settings.triad_ratio_weight === settings.triad_ratio_weight &&
           item.settings.manual_key === settings.manual_key)
       );
 

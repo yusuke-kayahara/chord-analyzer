@@ -34,7 +34,7 @@ function App() {
     checkConnection();
   }, []);
 
-  const handleAnalyze = async (chordInput: string) => {
+  const handleAnalyze = async (chordInput: string, saveToHistory: boolean = true) => {
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
     setLastInput(chordInput);
 
@@ -54,8 +54,10 @@ function App() {
         error: null,
       }));
       
-      // 分析成功時に履歴に保存
-      HistoryStorage.saveAnalysis(chordInput, advancedSettings, result);
+      // 新規分析の場合のみ履歴に保存
+      if (saveToHistory) {
+        HistoryStorage.saveAnalysis(chordInput, advancedSettings, result);
+      }
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -77,8 +79,8 @@ function App() {
   const handleReplayAnalysis = (chordInput: string, settings: AdvancedSettingsType) => {
     // 設定を復元
     setAdvancedSettings(settings);
-    // 分析を再実行
-    handleAnalyze(chordInput);
+    // 分析を再実行（履歴には保存しない）
+    handleAnalyze(chordInput, false);
   };
 
   return (
