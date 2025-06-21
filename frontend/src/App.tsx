@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ChordInput from './components/ChordInput';
 import AnalysisResult from './components/AnalysisResult';
 import ChordVisualization from './components/ChordVisualization';
@@ -26,8 +26,15 @@ function App() {
     manual_key: '',
     showAdvanced: false
   });
+  const isAnalyzingRef = useRef(false); // 分析中フラグ（重複実行防止）
 
   const handleAnalyze = useCallback(async (chordInput: string, saveToHistory: boolean = true) => {
+    // 既に分析中の場合は重複実行を防ぐ
+    if (isAnalyzingRef.current) {
+      return;
+    }
+    
+    isAnalyzingRef.current = true;
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
     setLastInput(chordInput);
 
@@ -57,6 +64,9 @@ function App() {
         isAnalyzing: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
       }));
+    } finally {
+      // 分析完了後、必ずフラグをリセット
+      isAnalyzingRef.current = false;
     }
   }, [advancedSettings]);
 
@@ -85,7 +95,7 @@ function App() {
     checkConnection();
   }, []);
 
-  // URL共有からの復元機能
+  // URL共有からの復元機能（初回のみ実行）
   useEffect(() => {
     const urlData = URLSharing.decodeAnalysisFromURL();
     if (urlData) {
@@ -95,14 +105,47 @@ function App() {
       setAdvancedSettings(settings);
       
       // 分析を自動実行（履歴には保存しない）
-      setTimeout(() => {
-        handleAnalyze(chordInput, false);
+      setTimeout(async () => {
+        // URL復元時専用の分析実行（重複防止）
+        if (isAnalyzingRef.current) {
+          return;
+        }
+        
+        isAnalyzingRef.current = true;
+        setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
+        setLastInput(chordInput);
+
+        try {
+          const result = await analyzeChordProgression(
+            chordInput,
+            settings.algorithm,
+            settings.traditional_weight,
+            settings.borrowed_chord_weight,
+            settings.triad_ratio_weight,
+            settings.manual_key
+          );
+          setState(prev => ({
+            ...prev,
+            isAnalyzing: false,
+            result,
+            error: null,
+          }));
+        } catch (error) {
+          setState(prev => ({
+            ...prev,
+            isAnalyzing: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+          }));
+        } finally {
+          // 分析完了後、必ずフラグをリセット
+          isAnalyzingRef.current = false;
+        }
       }, 500); // API接続確認後に実行
       
-      // URLパラメータをクリア（任意）
-      // URLSharing.clearURLParams();
+      // URLパラメータをクリア
+      URLSharing.clearURLParams();
     }
-  }, [handleAnalyze]);
+  }, []); // 依存関係を空にして初回のみ実行
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
