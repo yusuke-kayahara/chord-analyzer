@@ -39,7 +39,7 @@ const AnalysisHistory: React.FC<AnalysisHistoryProps> = ({ onReplayAnalysis }) =
   };
 
   const handleClearHistory = () => {
-    if (confirm('分析履歴をすべて削除しますか？')) {
+    if (window.confirm('分析履歴をすべて削除しますか？')) {
       HistoryStorage.clearHistory();
       loadHistory();
     }
