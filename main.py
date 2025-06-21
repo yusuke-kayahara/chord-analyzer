@@ -1,0 +1,324 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
+import re
+import numpy as np
+from pychord import Chord
+from sklearn.metrics.pairwise import cosine_similarity
+
+app = FastAPI(title="Chord Progression Analyzer", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Pydantic models
+class ChordAnalysisRequest(BaseModel):
+    chord_input: str
+
+class KeyCandidate(BaseModel):
+    key: str
+    relationship: str
+    confidence: float
+
+class BorrowedChord(BaseModel):
+    chord: str
+    non_diatonic_notes: List[str]
+    source_candidates: List[KeyCandidate]
+
+class AnalysisResponse(BaseModel):
+    main_key: str
+    confidence: float
+    borrowed_chords: List[BorrowedChord]
+    pitch_class_vector: List[float]
+
+# Constants
+NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+# Krumhansl's key profiles
+KRUMHANSL_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+KRUMHANSL_MINOR = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
+
+def extract_chords(chord_input: str) -> List[str]:
+    """[]で囲まれたコードを抽出する"""
+    pattern = r'\[([^\]]+)\]'
+    matches = re.findall(pattern, chord_input)
+    return matches
+
+def normalize_note(note: str) -> str:
+    """音名を正規化（異名同音を統一）"""
+    replacements = {
+        'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 
+        'Ab': 'G#', 'Bb': 'A#'
+    }
+    return replacements.get(note, note)
+
+def note_to_pitch_class(note: str) -> int:
+    """音名をピッチクラス番号に変換"""
+    normalized_note = normalize_note(note)
+    return NOTES.index(normalized_note) if normalized_note in NOTES else 0
+
+def get_chord_components(chord_symbol: str) -> List[str]:
+    """pychordを使ってコードの構成音を取得"""
+    try:
+        chord = Chord(chord_symbol)
+        return chord.components()  # 直接文字列のリストが返される
+    except Exception:
+        return []
+
+def create_pitch_class_vector(chords: List[str]) -> np.ndarray:
+    """12次元ピッチクラスベクトルを作成"""
+    vector = np.zeros(12)
+    
+    for chord_symbol in chords:
+        notes = get_chord_components(chord_symbol)
+        for note in notes:
+            pitch_class = note_to_pitch_class(note)
+            vector[pitch_class] += 1
+    
+    # 正規化
+    if np.sum(vector) > 0:
+        vector = vector / np.sum(vector)
+    
+    return vector
+
+def rotate_profile(profile: List[float], root: int) -> List[float]:
+    """キープロファイルを指定したルートに回転"""
+    return profile[root:] + profile[:root]
+
+def find_best_key(pitch_vector: np.ndarray):
+    """最適なキーを見つける"""
+    best_similarity = -1
+    best_key = None
+    
+    for root in range(12):
+        # メジャーキーとの類似度
+        major_profile = rotate_profile(KRUMHANSL_MAJOR, root)
+        similarity = cosine_similarity([pitch_vector], [major_profile])[0][0]
+        
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_key = f"{NOTES[root]} Major"
+            
+        # マイナーキーとの類似度
+        minor_profile = rotate_profile(KRUMHANSL_MINOR, root)
+        similarity = cosine_similarity([pitch_vector], [minor_profile])[0][0]
+        
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_key = f"{NOTES[root]} Minor"
+    
+    return best_key, best_similarity
+
+# ダイアトニックスケール定義
+MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]  # W-W-H-W-W-W-H
+MINOR_SCALE_INTERVALS = [0, 2, 3, 5, 7, 8, 10]  # W-H-W-W-H-W-W
+
+def get_diatonic_notes(key: str) -> List[str]:
+    """指定されたキーのダイアトニック音を取得"""
+    parts = key.split()
+    if len(parts) != 2:
+        return []
+    
+    root_note = parts[0]
+    key_type = parts[1]
+    
+    try:
+        root_pc = note_to_pitch_class(root_note)
+    except:
+        return []
+    
+    if key_type == "Major":
+        intervals = MAJOR_SCALE_INTERVALS
+    elif key_type == "Minor":
+        intervals = MINOR_SCALE_INTERVALS
+    else:
+        return []
+    
+    diatonic_notes = []
+    for interval in intervals:
+        pc = (root_pc + interval) % 12
+        diatonic_notes.append(NOTES[pc])
+    
+    return diatonic_notes
+
+def detect_non_diatonic_notes(chords: List[str], main_key: str) -> List[dict]:
+    """非ダイアトニック音を含むコードを検出"""
+    diatonic_notes = get_diatonic_notes(main_key)
+    non_diatonic_chords = []
+    
+    for chord_symbol in chords:
+        chord_notes = get_chord_components(chord_symbol)
+        # 正規化して比較
+        normalized_chord_notes = [normalize_note(note) for note in chord_notes]
+        normalized_diatonic_notes = [normalize_note(note) for note in diatonic_notes]
+        non_diatonic_notes = [note for note in chord_notes 
+                             if normalize_note(note) not in normalized_diatonic_notes]
+        
+        if non_diatonic_notes:
+            non_diatonic_chords.append({
+                'chord': chord_symbol,
+                'non_diatonic_notes': non_diatonic_notes
+            })
+    
+    return non_diatonic_chords
+
+def get_all_keys() -> List[str]:
+    """全24キー（メジャー・マイナー）のリストを取得"""
+    keys = []
+    for note in NOTES:
+        keys.append(f"{note} Major")
+        keys.append(f"{note} Minor")
+    return keys
+
+def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str) -> List[BorrowedChord]:
+    """借用元キー候補を特定"""
+    borrowing_candidates = []
+    all_keys = get_all_keys()
+    
+    for chord_info in non_diatonic_chords:
+        chord_symbol = chord_info['chord']
+        chord_notes = get_chord_components(chord_symbol)
+        source_candidates = []
+        
+        # 全24キーとの照合
+        for key in all_keys:
+            if key == main_key:
+                continue
+                
+            key_notes = get_diatonic_notes(key)
+            # このキーですべての構成音がダイアトニックかチェック（正規化して比較）
+            normalized_chord_notes = [normalize_note(note) for note in chord_notes]
+            normalized_key_notes = [normalize_note(note) for note in key_notes]
+            if all(note in normalized_key_notes for note in normalized_chord_notes):
+                relationship = analyze_relationship(main_key, key)
+                confidence = calculate_key_confidence(chord_notes, key)
+                
+                source_candidates.append(KeyCandidate(
+                    key=key,
+                    relationship=relationship,
+                    confidence=confidence
+                ))
+        
+        # 信頼度順にソート
+        source_candidates.sort(key=lambda x: x.confidence, reverse=True)
+        
+        borrowing_candidates.append(BorrowedChord(
+            chord=chord_symbol,
+            non_diatonic_notes=chord_info['non_diatonic_notes'],
+            source_candidates=source_candidates[:3]  # 上位3候補
+        ))
+    
+    return borrowing_candidates
+
+def analyze_relationship(main_key: str, source_key: str) -> str:
+    """メインキーと借用元キーの音楽理論的関係を分析"""
+    main_parts = main_key.split()
+    source_parts = source_key.split()
+    
+    if len(main_parts) != 2 or len(source_parts) != 2:
+        return "Unknown"
+    
+    main_root = main_parts[0]
+    main_type = main_parts[1]
+    source_root = source_parts[0]
+    source_type = source_parts[1]
+    
+    main_pc = note_to_pitch_class(main_root)
+    source_pc = note_to_pitch_class(source_root)
+    
+    # 同じルートの場合
+    if main_pc == source_pc:
+        if main_type != source_type:
+            return "Parallel Minor/Major"
+        else:
+            return "Same Key"
+    
+    # 度数関係を計算
+    interval = (source_pc - main_pc) % 12
+    
+    interval_names = {
+        0: "Unison", 1: "Minor 2nd", 2: "Major 2nd", 3: "Minor 3rd",
+        4: "Major 3rd", 5: "Perfect 4th", 6: "Tritone", 7: "Perfect 5th",
+        8: "Minor 6th", 9: "Major 6th", 10: "Minor 7th", 11: "Major 7th"
+    }
+    
+    relationship = interval_names.get(interval, "Unknown")
+    
+    # 特別な関係性
+    if interval == 3 and source_type == "Minor":  # 短3度上のマイナー
+        return "Relative Minor"
+    elif interval == 9 and source_type == "Major":  # 長6度上のメジャー
+        return "Relative Major"
+    elif interval == 7:  # 完全5度
+        return "Dominant Relationship"
+    elif interval == 5:  # 完全4度
+        return "Subdominant Relationship"
+    
+    return f"{relationship} ({source_type})"
+
+def calculate_key_confidence(chord_notes: List[str], key: str) -> float:
+    """指定されたキーに対するコードの適合度を計算"""
+    key_notes = get_diatonic_notes(key)
+    if not key_notes:
+        return 0.0
+    
+    # キーの構成音に含まれる音の割合
+    matching_notes = sum(1 for note in chord_notes if note in key_notes)
+    if len(chord_notes) == 0:
+        return 0.0
+    
+    basic_confidence = matching_notes / len(chord_notes)
+    
+    # 重要な音（ルート、3度、5度）の重み付け
+    if len(chord_notes) > 0:
+        root_note = chord_notes[0]  # 通常最初の音がルート
+        if root_note in key_notes:
+            basic_confidence += 0.1  # ルートがキーに含まれる場合はボーナス
+    
+    return min(basic_confidence, 1.0)
+
+@app.post("/analyze", response_model=AnalysisResponse)
+async def analyze_chord_progression(request: ChordAnalysisRequest):
+    """コード進行を分析する"""
+    
+    # ① コード抽出
+    chords = extract_chords(request.chord_input)
+    
+    if not chords:
+        return AnalysisResponse(
+            main_key="Unknown",
+            confidence=0.0,
+            borrowed_chords=[],
+            pitch_class_vector=[0.0] * 12
+        )
+    
+    # ② 構成音抽出・ベクトル化
+    pitch_vector = create_pitch_class_vector(chords)
+    
+    # ③ メインキー推定
+    main_key, confidence = find_best_key(pitch_vector)
+    
+    # ④ 借用和音検出
+    non_diatonic_chords = detect_non_diatonic_notes(chords, main_key)
+    borrowed_chords = find_borrowed_sources(non_diatonic_chords, main_key)
+    
+    return AnalysisResponse(
+        main_key=main_key,
+        confidence=confidence,
+        borrowed_chords=borrowed_chords,
+        pitch_class_vector=pitch_vector.tolist()
+    )
+
+@app.get("/")
+async def root():
+    return {"message": "Chord Progression Analyzer API"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
