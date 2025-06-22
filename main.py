@@ -416,7 +416,7 @@ def find_borrowed_sources(non_diatonic_chords: List[dict], main_key: str, all_ch
             normalized_key_notes = [normalize_note(note) for note in key_notes]
             if all(note in normalized_key_notes for note in normalized_chord_notes):
                 relationship = analyze_relationship(main_key, key)
-                confidence = calculate_key_confidence(chord_notes, key, context_notes)
+                confidence = calculate_key_confidence(chord_notes, key, context_notes, main_key=main_key)
                 
                 source_candidates.append(KeyCandidate(
                     key=key,
@@ -473,9 +473,9 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
     relationship = interval_names.get(interval, "Unknown")
     
     # 特別な関係性
-    if interval == 3 and source_type == "Minor":  # 短3度上のマイナー
+    if interval == 9 and source_type == "Minor":  # 長6度上のマイナー（= 短3度下） 
         return "Relative Minor"
-    elif interval == 9 and source_type == "Major":  # 長6度上のメジャー
+    elif interval == 3 and source_type == "Major":  # 短3度上のメジャー（= 長6度下）
         return "Relative Major"
     elif interval == 7:  # 完全5度
         return "Dominant Relationship"
@@ -486,8 +486,41 @@ def analyze_relationship(main_key: str, source_key: str) -> str:
     
     return f"{relationship} ({source_type})"
 
-def calculate_key_confidence(chord_notes: List[str], key: str, context_notes: List[str] = None, context_weight: float = 0.07) -> float:
-    """指定されたキーに対するコードの適合度を計算（前後の和音コンテキスト考慮）"""
+def get_key_relationship_bonus(relationship: str) -> float:
+    """キー関係性に基づくconfidenceボーナスを計算"""
+    # 音楽理論的に重要な関係性にボーナスを付与
+    relationship_bonuses = {
+        # 最重要関係（同主調・関係調）
+        "Parallel Minor/Major": 0.15,          # 同主調（最も重要）
+        "Parallel Harmonic Minor": 0.12,       # パラレルハーモニックマイナー
+        "Relative Minor": 0.10,                # 関係調
+        "Relative Major": 0.10,                # 関係調
+        
+        # 重要関係（機能的関係）
+        "Dominant Relationship": 0.08,          # 属調（5度関係）
+        "Subdominant Relationship": 0.08,      # 下属調（4度関係）
+        
+        # 中程度関係（近親調）
+        "Major 2nd": 0.05,                     # 全音関係
+        "Minor 2nd": 0.03,                     # 半音関係
+        "Minor 3rd": 0.04,                     # 短3度関係
+        "Major 3rd": 0.04,                     # 長3度関係
+        
+        # ハーモニックマイナー関係
+        "Major 6th (Harmonic Minor)": 0.09,    # ハーモニックマイナー由来
+        "Minor 7th (Harmonic Minor)": 0.07,    # ハーモニックマイナー由来
+    }
+    
+    # 関係性文字列からボーナスを検索
+    for key_relationship, bonus in relationship_bonuses.items():
+        if key_relationship in relationship:
+            return bonus
+    
+    # デフォルト（関係性ボーナスなし）
+    return 0.0
+
+def calculate_key_confidence(chord_notes: List[str], key: str, context_notes: List[str] = None, context_weight: float = 0.07, main_key: str = None) -> float:
+    """指定されたキーに対するコードの適合度を計算（前後の和音コンテキスト・キー関係性考慮）"""
     key_notes = get_diatonic_notes(key)
     if not key_notes:
         return 0.0
@@ -513,7 +546,13 @@ def calculate_key_confidence(chord_notes: List[str], key: str, context_notes: Li
             context_confidence = context_matching / len(context_notes)
             context_bonus = context_confidence * context_weight
     
-    total_confidence = basic_confidence + context_bonus
+    # キー関係性ボーナスを追加
+    relationship_bonus = 0.0
+    if main_key and main_key != key:
+        relationship = analyze_relationship(main_key, key)
+        relationship_bonus = get_key_relationship_bonus(relationship)
+    
+    total_confidence = basic_confidence + context_bonus + relationship_bonus
     return min(total_confidence, 1.0)
 
 @app.post("/analyze", response_model=AnalysisResponse)
