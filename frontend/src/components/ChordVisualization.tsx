@@ -79,6 +79,15 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     return match ? match[1] : '';
   };
 
+  // オンコード（スラッシュコード）を分析
+  const parseSlashChord = (chord: string): { mainChord: string; bassNote: string | null } => {
+    const slashMatch = chord.match(/^([^/]+)\/([A-G][#b]?)$/);
+    if (slashMatch) {
+      return { mainChord: slashMatch[1], bassNote: slashMatch[2] };
+    }
+    return { mainChord: chord, bassNote: null };
+  };
+
   // コードタイプを判定（メジャー、マイナー、ディミニッシュなど）
   const getChordType = (chord: string): { quality: string; extensions: string } => {
     const root = getChordRoot(chord);
@@ -106,7 +115,19 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     return { quality: 'major', extensions: remainder };
   };
 
-  // コード進行の度数分析（改良版）
+  // ベース音の度数を計算
+  const getBassNoteDegree = (bassNote: string, keyRoot: string): string => {
+    const keyPC = noteToPC(keyRoot);
+    const bassPC = noteToPC(bassNote);
+    
+    if (keyPC === -1 || bassPC === -1) return '?';
+    
+    const interval = (bassPC - keyPC + 12) % 12;
+    const degreeMap = ['I', 'bII', 'II', 'bIII', 'III', 'IV', '#IV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
+    return degreeMap[interval];
+  };
+
+  // コード進行の度数分析（改良版・オンコード対応）
   const analyzeChordFunction = (chord: string): string => {
     const keyParts = mainKey.split(' ');
     if (keyParts.length < 2) return '?';
@@ -114,7 +135,10 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     const keyRoot = keyParts[0];
     const keyType = keyParts[1];
     
-    const chordRoot = getChordRoot(chord);
+    // オンコードを分析
+    const { mainChord, bassNote } = parseSlashChord(chord);
+    
+    const chordRoot = getChordRoot(mainChord);
     if (!chordRoot) return '?';
     
     const keyPC = noteToPC(keyRoot);
@@ -125,8 +149,8 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     // キーからの度数を計算
     const interval = (chordPC - keyPC + 12) % 12;
     
-    // コードの性質を取得
-    const { quality, extensions } = getChordType(chord);
+    // コードの性質を取得（メインコード部分のみ）
+    const { quality, extensions } = getChordType(mainChord);
     
     // メジャーキーでの度数マッピング
     const majorDegrees = ['I', 'bII', 'II', 'bIII', 'III', 'IV', '#IV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
@@ -159,8 +183,22 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
       return '?';
     }
     
-    // 添え字（7, M7, sus4など）を追加
-    return baseDegree + extensions;
+    // エクステンションを追加（クリーンアップして重複を避ける）
+    let cleanExtensions = extensions;
+    if (cleanExtensions) {
+      // 不正な文字を除去
+      cleanExtensions = cleanExtensions.replace(/[^0-9a-zA-Z+#bsumaj(),-]/g, '');
+    }
+    
+    let result = baseDegree + cleanExtensions;
+    
+    // オンコード表記を追加
+    if (bassNote) {
+      const bassDegree = getBassNoteDegree(bassNote, keyRoot);
+      result += '/' + bassDegree;
+    }
+    
+    return result;
   };
 
   return (
