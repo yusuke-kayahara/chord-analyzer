@@ -89,26 +89,108 @@ def note_to_pitch_class(note: str) -> int:
     return NOTES.index(normalized_note) if normalized_note in NOTES else 0
 
 def get_chord_components(chord_symbol: str) -> List[str]:
-    """pychordを使ってコードの構成音を取得（テンション対応）"""
+    """pychordを使ってコードの構成音を取得（テンション音も含む）"""
     try:
         # まず元のコードで試行
         chord = Chord(chord_symbol)
         return chord.components()
     except Exception:
-        # テンション付きコードの場合、コア部分のみで解析を試行
+        # テンション付きコードの場合、コア部分とテンション部分を分けて処理
         try:
-            # テンション部分を除去してコア部分を取得
             import re
-            # 例: C#dim(9) → C#dim, Am7(b9,#11) → Am7
-            core_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7)?)', chord_symbol)
-            if core_match:
-                core_chord = core_match.group(1)
-                chord = Chord(core_chord)
-                return chord.components()
+            
+            # テンション部分を抽出
+            tension_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7)?)\(([^)]+)\)', chord_symbol)
+            
+            if tension_match:
+                core_chord_str = tension_match.group(1)
+                tension_part = tension_match.group(2)
+                
+                # コア部分の構成音を取得
+                chord = Chord(core_chord_str)
+                base_components = chord.components()
+                
+                # テンション音を計算して追加
+                tension_notes = calculate_tension_notes(core_chord_str, tension_part)
+                
+                # 重複を除去して結合
+                all_components = list(set(base_components + tension_notes))
+                return all_components
             else:
-                return []
+                # テンション記法がない場合、コア部分のみで解析
+                core_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7)?)', chord_symbol)
+                if core_match:
+                    core_chord = core_match.group(1)
+                    chord = Chord(core_chord)
+                    return chord.components()
+                else:
+                    return []
         except Exception:
             return []
+
+def calculate_tension_notes(core_chord: str, tension_part: str) -> List[str]:
+    """テンション記法から実際のテンション音を計算"""
+    tension_notes = []
+    
+    try:
+        # コードのルート音を取得
+        root_match = re.match(r'^([A-G][#b]?)', core_chord)
+        if not root_match:
+            return []
+        
+        root_note = root_match.group(1)
+        root_pc = note_to_pitch_class(root_note)
+        
+        # テンション要素を分割
+        tension_elements = re.split(r'[,、\s]+', tension_part)
+        
+        for element in tension_elements:
+            element = element.strip()
+            if not element:
+                continue
+                
+            # テンション記法を解析 (例: #9, b13, 11)
+            tension_match = re.match(r'([#b+-]?)(\d+)', element)
+            if tension_match:
+                modifier = tension_match.group(1) if tension_match.group(1) else ''
+                number = int(tension_match.group(2))
+                
+                # テンション音のピッチクラスを計算
+                tension_pc = calculate_tension_pitch_class(root_pc, number, modifier)
+                if tension_pc is not None:
+                    tension_note = NOTES[tension_pc]
+                    tension_notes.append(tension_note)
+    
+    except Exception:
+        pass
+    
+    return tension_notes
+
+def calculate_tension_pitch_class(root_pc: int, interval: int, modifier: str) -> int:
+    """テンション音のピッチクラスを計算"""
+    # 基本的なインターバルマッピング（オクターブ内に正規化）
+    interval_map = {
+        9: 2,   # 9度 = 2度
+        11: 5,  # 11度 = 4度  
+        13: 9,  # 13度 = 6度
+        # 基本度数も対応
+        2: 2,   # 2度
+        4: 5,   # 4度
+        6: 9,   # 6度
+        7: 10,  # 7度
+    }
+    
+    base_interval = interval_map.get(interval, interval % 12)
+    
+    # 修飾記号を適用
+    if modifier == '#' or modifier == '+':
+        base_interval += 1
+    elif modifier == 'b' or modifier == '-':
+        base_interval -= 1
+    
+    # ルートからの音程を計算
+    tension_pc = (root_pc + base_interval) % 12
+    return tension_pc
 
 def create_pitch_class_vector(chords: List[str]) -> np.ndarray:
     """12次元ピッチクラスベクトルを作成（改良版：重み付けあり）"""
