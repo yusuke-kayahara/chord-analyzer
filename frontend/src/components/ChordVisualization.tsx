@@ -163,7 +163,7 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
       baseDegree = majorDegrees[interval];
       // メジャーキーでのコード性質調整
       if (quality === 'minor') {
-        baseDegree = baseDegree.toLowerCase();
+        baseDegree = baseDegree + 'm';  // 大文字のままで「m」を追加
       } else if (quality === 'diminished') {
         baseDegree = baseDegree.toLowerCase() + '°';
       } else if (quality === 'augmented') {
