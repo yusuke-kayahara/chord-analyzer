@@ -88,6 +88,32 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     return { mainChord: chord, bassNote: null };
   };
 
+  // テンションコードを解析
+  const parseTensionChord = (chord: string): { mainChord: string; tensions: string[] } => {
+    // テンション部分を抽出 例: C7(b9,#11) → mainChord: C7, tensions: ['b9', '#11']
+    const tensionMatch = chord.match(/^([A-G][#b]?[^(]*)\(([^)]+)\)$/);
+    
+    if (tensionMatch) {
+      const mainChord = tensionMatch[1];
+      const tensionPart = tensionMatch[2];
+      
+      // カンマ（,または、）で分割してテンション要素を取得
+      const tensionElements = tensionPart.split(/[,、\s]+/)
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      // 各テンション要素をクリーンアップ
+      const tensions = tensionElements.map(element => {
+        const tensionMatch = element.match(/([#b+-]?\d+)/);
+        return tensionMatch ? tensionMatch[1] : element;
+      });
+      
+      return { mainChord, tensions };
+    }
+    
+    return { mainChord: chord, tensions: [] };
+  };
+
   // コードタイプを判定（メジャー、マイナー、ディミニッシュなど）
   const getChordType = (chord: string): { quality: string; extensions: string } => {
     const root = getChordRoot(chord);
@@ -127,7 +153,7 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     return degreeMap[interval];
   };
 
-  // コード進行の度数分析（改良版・オンコード対応）
+  // コード進行の度数分析（改良版・オンコード・テンション対応）
   const analyzeChordFunction = (chord: string): string => {
     const keyParts = mainKey.split(' ');
     if (keyParts.length < 2) return '?';
@@ -138,7 +164,10 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     // オンコードを分析
     const { mainChord, bassNote } = parseSlashChord(chord);
     
-    const chordRoot = getChordRoot(mainChord);
+    // テンションコードを分析
+    const { mainChord: coreChord, tensions } = parseTensionChord(mainChord);
+    
+    const chordRoot = getChordRoot(coreChord);
     if (!chordRoot) return '?';
     
     const keyPC = noteToPC(keyRoot);
@@ -149,8 +178,8 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     // キーからの度数を計算
     const interval = (chordPC - keyPC + 12) % 12;
     
-    // コードの性質を取得（メインコード部分のみ）
-    const { quality, extensions } = getChordType(mainChord);
+    // コードの性質を取得（コア部分のみ）
+    const { quality, extensions } = getChordType(coreChord);
     
     // メジャーキーでの度数マッピング
     const majorDegrees = ['I', 'bII', 'II', 'bIII', 'III', 'IV', '#IV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
@@ -191,6 +220,11 @@ const ChordVisualization: React.FC<ChordVisualizationProps> = ({
     }
     
     let result = baseDegree + cleanExtensions;
+    
+    // テンション情報を追加
+    if (tensions.length > 0) {
+      result += '(' + tensions.join(',') + ')';
+    }
     
     // オンコード表記を追加
     if (bassNote) {
