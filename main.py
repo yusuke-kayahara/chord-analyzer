@@ -89,12 +89,26 @@ def note_to_pitch_class(note: str) -> int:
     return NOTES.index(normalized_note) if normalized_note in NOTES else 0
 
 def get_chord_components(chord_symbol: str) -> List[str]:
-    """pychordを使ってコードの構成音を取得"""
+    """pychordを使ってコードの構成音を取得（テンション対応）"""
     try:
+        # まず元のコードで試行
         chord = Chord(chord_symbol)
-        return chord.components()  # 直接文字列のリストが返される
+        return chord.components()
     except Exception:
-        return []
+        # テンション付きコードの場合、コア部分のみで解析を試行
+        try:
+            # テンション部分を除去してコア部分を取得
+            import re
+            # 例: C#dim(9) → C#dim, Am7(b9,#11) → Am7
+            core_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7)?)', chord_symbol)
+            if core_match:
+                core_chord = core_match.group(1)
+                chord = Chord(core_chord)
+                return chord.components()
+            else:
+                return []
+        except Exception:
+            return []
 
 def create_pitch_class_vector(chords: List[str]) -> np.ndarray:
     """12次元ピッチクラスベクトルを作成（改良版：重み付けあり）"""
