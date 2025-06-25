@@ -27,6 +27,11 @@ export interface KeyEstimationResult {
   algorithm: string;
 }
 
+export interface ProgressionDetail {
+  chord_symbol: string;
+  components: string[];
+}
+
 export interface ChordAnalysisResponse {
   main_key: string;
   confidence: number;
@@ -34,6 +39,7 @@ export interface ChordAnalysisResponse {
   pitch_class_vector: number[];
   key_candidates: KeyEstimationResult[];
   algorithm_used: string;
+  progression_details: ProgressionDetail[];
 }
 
 export interface UIState {
