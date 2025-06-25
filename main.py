@@ -42,10 +42,6 @@ class KeyEstimationResult(BaseModel):
     borrowed_chord_count: int
     algorithm: str
 
-class ProgressionDetail(BaseModel):
-    chord_symbol: str
-    components: List[str]
-
 class AnalysisResponse(BaseModel):
     main_key: str
     confidence: float
@@ -53,7 +49,6 @@ class AnalysisResponse(BaseModel):
     pitch_class_vector: List[float]
     key_candidates: List[KeyEstimationResult]  # 各アルゴリズムの結果
     algorithm_used: str
-    progression_details: List[ProgressionDetail] = []  # コード進行の詳細を追加
 
 # Constants
 NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -739,23 +734,13 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
     non_diatonic_chords = detect_non_diatonic_notes(chords, main_key)
     borrowed_chords = find_borrowed_sources(non_diatonic_chords, main_key, chords)
     
-    # ⑥ コード進行の詳細を作成
-    progression_details = []
-    for chord_symbol in chords:
-        components = get_chord_components(chord_symbol)
-        progression_details.append(ProgressionDetail(
-            chord_symbol=chord_symbol,
-            components=components
-        ))
-
     return AnalysisResponse(
         main_key=main_key,
         confidence=final_confidence,
         borrowed_chords=borrowed_chords,
         pitch_class_vector=pitch_vector.tolist(),
         key_candidates=key_candidates,
-        algorithm_used=request.algorithm,
-        progression_details=progression_details
+        algorithm_used=request.algorithm
     )
 
 @app.get("/keys")
