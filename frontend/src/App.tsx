@@ -4,6 +4,7 @@ import AnalysisResult from './components/AnalysisResult';
 import ChordVisualization from './components/ChordVisualization';
 import AdvancedSettings from './components/AdvancedSettings';
 import AnalysisHistory from './components/AnalysisHistory';
+import PlaybackControls from './components/PlaybackControls';
 import ShareButton from './components/ShareButton';
 import { analyzeChordProgression, testApiConnection } from './services/api';
 import { UIState, AdvancedSettings as AdvancedSettingsType, SelectedBorrowedKeys } from './types/chord';
@@ -229,6 +230,7 @@ function App() {
               selectedBorrowedKeys={selectedBorrowedKeys}
               onBorrowedKeySelect={handleBorrowedKeySelect}
             />
+            <PlaybackControls analysisResult={state.result} />
             <ChordVisualization
               chordInput={lastInput}
               mainKey={state.result.main_key}

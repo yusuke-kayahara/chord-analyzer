@@ -27,13 +27,19 @@ export interface KeyEstimationResult {
   algorithm: string;
 }
 
-export interface ChordAnalysisResponse {
+export interface ProgressionDetail {
+  chord_symbol: string;
+  components: string[];
+}
+
+export interface AnalysisResponse {
   main_key: string;
-  confidence: number;
-  borrowed_chords: BorrowedChord[];
+  confidence: float;
+  borrowed_chords: any[]; // Replace with a more specific type if you have one
   pitch_class_vector: number[];
-  key_candidates: KeyEstimationResult[];
+  key_candidates: any[]; // Replace with a more specific type if you have one
   algorithm_used: string;
+  progression_details: ProgressionDetail[];
 }
 
 export interface UIState {
