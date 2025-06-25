@@ -1,8 +1,8 @@
 import React from 'react';
-import { ChordAnalysisResponse, SelectedBorrowedKeys } from '../types/chord';
+import { AnalysisResponse, SelectedBorrowedKeys } from '../types/chord';
 
 interface AnalysisResultProps {
-  result: ChordAnalysisResponse;
+  result: AnalysisResponse;
   selectedBorrowedKeys: SelectedBorrowedKeys;
   onBorrowedKeySelect: (chord: string, key: string) => void;
 }

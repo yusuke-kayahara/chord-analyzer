@@ -45,7 +45,7 @@ export interface AnalysisResponse {
 export interface UIState {
   isAnalyzing: boolean;
   error: string | null;
-  result: ChordAnalysisResponse | null;
+  result: AnalysisResponse | null;
 }
 
 export interface AdvancedSettings {
@@ -72,5 +72,5 @@ export interface AnalysisHistory {
     triad_ratio_weight: number;
     manual_key: string;
   };
-  result: ChordAnalysisResponse;
+  result: AnalysisResponse;
 }
