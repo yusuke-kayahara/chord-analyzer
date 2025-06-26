@@ -1,3 +1,5 @@
+const plugin = require('tailwindcss/plugin');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -27,5 +29,15 @@ module.exports = {
       }
     },
   },
-  plugins: [],
-}
+  plugins: [
+    plugin(function({ addUtilities, theme }) {
+      addUtilities({
+        '.slider-track': {
+          '--tw-gradient-from': theme('colors.blue.500', '#3b82f6'),
+          '--tw-gradient-to': theme('colors.blue.500', '#3b82f6'),
+          'background-image': `linear-gradient(to right, var(--tw-gradient-from) var(--value, 0%), ${theme('colors.gray.300', '#d1d5db')} var(--value, 0%))`,
+        },
+      });
+    }),
+  ],
+};
