@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { ProgressionDetail } from '../types/chord';
+import PianoKeyboard from './PianoKeyboard';
 
 interface PlaybackControlsProps {
   progression: ProgressionDetail[];
@@ -48,7 +49,8 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({ progression }) => {
     if (progression.length > 0 && synthRef.current) {
       const newSequence = new Tone.Sequence(
         (time, chord) => {
-          const notes = chord.components.map(n => `${n}4`);
+          // Backend now provides notes with octave, so no need to add '4'
+          const notes = chord.components;
           // Use '2n' for a half note duration
           synthRef.current?.triggerAttackRelease(notes, '2n', time);
           Tone.Draw.schedule(() => {
@@ -56,7 +58,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({ progression }) => {
           }, time);
         },
         progression,
-        '1n' // The sequence interval remains '1n' to step every whole note
+        '2n' // The sequence interval is now also '2n'
       );
       newSequence.loop = false;
       sequenceRef.current = newSequence;
@@ -86,9 +88,25 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({ progression }) => {
     setCurrentChordIndex(-1);
   }, []);
 
+  // 現在再生中のコードの構成音を取得
+  const getCurrentChordNotes = (): string[] => {
+    if (currentChordIndex >= 0 && currentChordIndex < progression.length) {
+      return progression[currentChordIndex].components;
+    }
+    return [];
+  };
+
+  // 現在のコード名を取得
+  const getCurrentChordName = (): string => {
+    if (currentChordIndex >= 0 && currentChordIndex < progression.length) {
+      return progression[currentChordIndex].chord_symbol;
+    }
+    return '';
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">再生コントロール</h3>
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">試聴・再生</h3>
       <div className="space-y-4">
         {/* Playback and Progress Bar */}
         <div className="flex items-center space-x-4">
@@ -114,6 +132,29 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({ progression }) => {
             ))}
           </div>
         </div>
+
+        {/* Current Chord Display */}
+        {currentChordIndex >= 0 && (
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800 font-medium">
+              現在再生中: <span className="font-bold">{getCurrentChordName()}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Piano Keyboard Visualization */}
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">構成音の視覚化</h4>
+          <div className="overflow-x-auto">
+            <PianoKeyboard 
+              activeNotes={getCurrentChordNotes()}
+              startOctave={2}
+              endOctave={5}
+              className="w-full"
+            />
+          </div>
+        </div>
+
         {/* Volume Control */}
         <div className="flex items-center space-x-3 pt-2">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

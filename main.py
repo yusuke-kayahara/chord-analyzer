@@ -94,12 +94,48 @@ def note_to_pitch_class(note: str) -> int:
     return NOTES.index(normalized_note) if normalized_note in NOTES else 0
 
 def get_chord_components(chord_symbol: str) -> List[str]:
-    """pychordを使ってコードの構成音を取得（テンション音も含む）"""
+    """コード構成音を取得（括弧記法テンション対応）"""
+    import re
+    
+    # 括弧記法の分解: Bm7(13) -> コア部分="Bm7", テンション部分="13"
+    tension_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7|6|add\d+)?)\(([^)]+)\)$', chord_symbol)
+    
+    if tension_match:
+        core_chord_str = tension_match.group(1)
+        tension_part = tension_match.group(2)
+        
+        try:
+            # コア部分をpychordで解析
+            core_chord = Chord(core_chord_str)
+            core_notes = core_chord.components()
+            
+            # テンション音を独自ロジックで追加
+            tension_notes = calculate_tension_notes_advanced(core_chord_str, tension_part)
+            
+            # 重複除去して結合
+            all_notes = core_notes[:]
+            for note in tension_notes:
+                if note not in all_notes:
+                    all_notes.append(note)
+            
+            return all_notes
+            
+        except Exception as e:
+            print(f"Error processing bracketed chord {chord_symbol}: {e}")
+            pass
+    
+    # 通常のコード処理
     try:
-        # まず元のコードで試行
         chord = Chord(chord_symbol)
         return chord.components()
     except Exception:
+        # 最後の手段：括弧を除去して再試行
+        try:
+            simplified = re.sub(r'\([^)]*\)', '', chord_symbol)
+            chord = Chord(simplified)
+            return chord.components()
+        except Exception:
+            return []
         # テンション付きコードの場合、コア部分とテンション部分を分けて処理
         try:
             import re
@@ -132,6 +168,42 @@ def get_chord_components(chord_symbol: str) -> List[str]:
                     return []
         except Exception:
             return []
+
+def calculate_tension_notes_advanced(core_chord: str, tension_part: str) -> List[str]:
+    """高度なテンション計算（独自ロジック）"""
+    tension_notes = []
+    
+    try:
+        # コードのルート音を取得
+        from pychord import Chord
+        chord_obj = Chord(core_chord)
+        root_note = str(chord_obj.root)
+        root_pc = note_to_pitch_class(root_note)
+        
+        # テンション要素を分割・解析
+        tension_elements = re.split(r'[,、\s]+', tension_part)
+        
+        for element in tension_elements:
+            element = element.strip()
+            if not element:
+                continue
+                
+            # テンション記法を解析 (例: 9, #11, b13, 13)
+            tension_match = re.match(r'([#b+-]?)(\d+)', element)
+            if tension_match:
+                modifier = tension_match.group(1) if tension_match.group(1) else ''
+                number = int(tension_match.group(2))
+                
+                # テンション音のピッチクラスを計算
+                tension_pc = calculate_tension_pitch_class_advanced(root_pc, number, modifier)
+                if tension_pc is not None:
+                    tension_note = NOTES[tension_pc]
+                    tension_notes.append(tension_note)
+    
+    except Exception as e:
+        print(f"Error calculating tension for {core_chord}({tension_part}): {e}")
+    
+    return tension_notes
 
 def calculate_tension_notes(core_chord: str, tension_part: str) -> List[str]:
     """テンション記法から実際のテンション音を計算"""
@@ -171,6 +243,35 @@ def calculate_tension_notes(core_chord: str, tension_part: str) -> List[str]:
     
     return tension_notes
 
+def calculate_tension_pitch_class_advanced(root_pc: int, interval: int, modifier: str) -> int:
+    """高度なテンション音ピッチクラス計算"""
+    # より正確なインターバルマッピング
+    interval_map = {
+        # 基本度数
+        2: 2,   # 2度 = 2半音
+        4: 5,   # 4度 = 5半音
+        6: 9,   # 6度 = 9半音
+        7: 10,  # 7度 = 10半音（短7度）
+        # テンション度数（オクターブ上の度数）
+        9: 2,   # 9度 = 2度 (2半音)
+        11: 5,  # 11度 = 4度 (5半音)
+        13: 9,  # 13度 = 6度 (9半音)
+    }
+    
+    base_interval = interval_map.get(interval)
+    if base_interval is None:
+        return None
+    
+    # 修飾記号を適用
+    if modifier == '#' or modifier == '+':
+        base_interval += 1
+    elif modifier == 'b' or modifier == '-':
+        base_interval -= 1
+    
+    # ルートからの音程を計算
+    tension_pc = (root_pc + base_interval) % 12
+    return tension_pc
+
 def calculate_tension_pitch_class(root_pc: int, interval: int, modifier: str) -> int:
     """テンション音のピッチクラスを計算"""
     # 基本的なインターバルマッピング（オクターブ内に正規化）
@@ -196,6 +297,145 @@ def calculate_tension_pitch_class(root_pc: int, interval: int, modifier: str) ->
     # ルートからの音程を計算
     tension_pc = (root_pc + base_interval) % 12
     return tension_pc
+
+def optimize_root_octave(root_pc: int, core_notes: List[tuple], base_root_octave: int, base_octave: int) -> int:
+    """ルートオクターブを最適化（実際のボイシング後の音高を考慮）"""
+    if not core_notes:
+        # コア音がない場合は1オクターブ上げて自然なレンジにする
+        return base_root_octave + 1
+    
+    # 各コア音の実際の配置オクターブを予測
+    core_octave = base_octave
+    last_pc = -1
+    actual_core_notes = []
+    
+    for note, interval in sorted(core_notes, key=lambda x: x[1]):
+        pc = note_to_pitch_class(note)
+        if pc < last_pc:  # 音が下行する場合はオクターブを上げる
+            core_octave += 1
+        actual_core_notes.append((note, pc, core_octave))
+        last_pc = pc
+    
+    # 最低コア音の実際のMIDI番号を計算
+    lowest_core_midi = min((octave + 1) * 12 + pc for _, pc, octave in actual_core_notes)
+    
+    # ルートを1オクターブ上げた場合のMIDI番号
+    optimized_root_midi = (base_root_octave + 1 + 1) * 12 + root_pc
+    
+    # ルートが最低音を維持できるかチェック
+    if optimized_root_midi < lowest_core_midi:
+        return base_root_octave + 1
+    else:
+        return base_root_octave
+
+def get_chord_components_with_voicing(chord_symbol: str, base_octave: int = 3) -> List[str]:
+    """コード構成音を、音楽理論に基づいた自然なボイシングで取得する"""
+    try:
+        components = get_chord_components(chord_symbol)
+        if not components:
+            return []
+
+        root_note = components[0]
+        root_pc = note_to_pitch_class(root_note)
+
+        # 音程に基づいて構成音を分類（ルート、コア音、テンション音）
+        root_notes = []      # ルート音
+        core_notes = []      # 3rd, 5th, 7th
+        tension_notes = []   # 9th, 11th, 13th
+        
+        # 括弧記法で追加されたテンション音を特定
+        bracket_tensions = []
+        if '(' in chord_symbol and ')' in chord_symbol:
+            # コア部分とテンション部分を分離
+            import re
+            tension_match = re.match(r'^([A-G][#b]?(?:maj|m|dim|aug|sus[24]?)?(?:7|maj7|mM7|M7|6|add\d+)?)\(([^)]+)\)$', chord_symbol)
+            if tension_match:
+                core_chord_str = tension_match.group(1)
+                try:
+                    core_chord = Chord(core_chord_str)
+                    core_components = core_chord.components()
+                    # コア音以外はテンション音
+                    bracket_tensions = [note for note in components if note not in core_components]
+                except:
+                    pass
+        
+        for note in components:
+            pc = note_to_pitch_class(note)
+            interval = (pc - root_pc + 12) % 12
+            
+            # 括弧記法で追加された音は強制的にテンション分類
+            if note in bracket_tensions:
+                tension_notes.append((note, interval))
+            elif interval == 0:  # ルート
+                root_notes.append((note, interval))
+            elif interval in [1, 2]:  # 9th (2nd)
+                tension_notes.append((note, interval))
+            elif interval in [3, 4]:  # 3rd
+                core_notes.append((note, interval))
+            elif interval in [5, 6]:  # 4th/11th
+                if '11' in chord_symbol or 'sus4' in chord_symbol:
+                    if '11' in chord_symbol:
+                        tension_notes.append((note, interval))
+                    else:
+                        core_notes.append((note, interval))
+                else:
+                    core_notes.append((note, interval))
+            elif interval == 7:  # 5th
+                core_notes.append((note, interval))
+            elif interval in [8, 9]:  # 6th/13th
+                if '13' in chord_symbol:
+                    tension_notes.append((note, interval))
+                else:
+                    core_notes.append((note, interval))
+            elif interval in [10, 11]:  # 7th
+                core_notes.append((note, interval))
+            else:
+                core_notes.append((note, interval))
+        
+        # 各グループ内で音程順にソート
+        core_notes.sort(key=lambda x: x[1])
+        tension_notes.sort(key=lambda x: x[1])
+        
+        # 新しいボイシングロジック：コア音中心配置
+        voiced_notes = []
+        
+        # 1. コア音を中心オクターブ（base_octave）に配置
+        core_octave = base_octave
+        last_core_pc = -1
+        
+        for note, interval in core_notes:
+            pc = note_to_pitch_class(note)
+            if pc < last_core_pc:  # 音が下行する場合はオクターブを上げる
+                core_octave += 1
+            voiced_notes.append(f"{note}{core_octave}")
+            last_core_pc = pc
+        
+        # 2. ルート音を最適なオクターブに配置
+        if root_notes:
+            root_note, _ = root_notes[0]
+            root_pc = note_to_pitch_class(root_note)
+            
+            # 基本ルートオクターブ
+            base_root_octave = base_octave - 1 if base_octave > 1 else base_octave
+            
+            # ルートオクターブ最適化: ルートを上げても音列が崩れないかチェック
+            optimized_root_octave = optimize_root_octave(root_pc, core_notes, base_root_octave, base_octave)
+            
+            # ルート音をリストの最初に挿入
+            voiced_notes.insert(0, f"{root_note}{optimized_root_octave}")
+        
+        # 3. テンション音をコア音より高く配置
+        for note, interval in tension_notes:
+            # テンション音は常にコア音より高いオクターブに配置
+            tension_octave = core_octave + 1
+            voiced_notes.append(f"{note}{tension_octave}")
+
+        print(f"Voicing for {chord_symbol}: {voiced_notes}") # DEBUGGING PRINT
+        return voiced_notes
+
+    except Exception as e:
+        print(f"Error in voicing {chord_symbol}: {e}")
+        return [f"{n}{base_octave}" for n in get_chord_components(chord_symbol)]
 
 def create_pitch_class_vector(chords: List[str]) -> np.ndarray:
     """12次元ピッチクラスベクトルを作成（改良版：重み付けあり）"""
@@ -741,7 +981,7 @@ async def analyze_chord_progression(request: ChordAnalysisRequest):
 
     # ⑥ コード詳細の生成
     progression_details = [
-        ProgressionDetail(chord_symbol=c, components=get_chord_components(c))
+        ProgressionDetail(chord_symbol=c, components=get_chord_components_with_voicing(c))
         for c in chords
     ]
     
@@ -767,6 +1007,16 @@ async def get_available_keys():
 @app.get("/")
 async def root():
     return {"message": "Chord Progression Analyzer API"}
+
+class VoicingDebugRequest(BaseModel):
+    chord_input: str
+
+@app.post("/debug-voicing")
+async def debug_voicing(request: VoicingDebugRequest):
+    """指定されたコード進行のボイシングをデバッグする"""
+    chords = extract_chords(request.chord_input)
+    voicings = {c: get_chord_components_with_voicing(c) for c in chords}
+    return voicings
 
 if __name__ == "__main__":
     import uvicorn

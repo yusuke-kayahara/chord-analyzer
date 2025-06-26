@@ -9,11 +9,10 @@ interface ChordInputProps {
 const ChordInput: React.FC<ChordInputProps> = ({ onAnalyze, isAnalyzing, initialInput = '' }) => {
   const [input, setInput] = useState(initialInput);
   const [examples] = useState([
-    '[CM7][Am7][FM7][G7]',
-    '[C][Am][Fm][G]', 
-    '[FM7][FmM7][Em7][A7]',
-    '[C][Ab][F][G]',
-    '[Am][F][C][G]'
+    '[C][Am][F][G]',  // 基礎的な進行
+    '[C][E][Am][F][C]',  // 転調を含む進行
+    '[CM7(9)][Am7(11)][Fm7(b13)][G7(#9)]',  // テンションを含む進行
+    '[C/G][Am/C][F/A][G/B]'  // オンコードを含む進行
   ]);
 
   // 外部から初期値が変更された時に入力フィールドを更新
